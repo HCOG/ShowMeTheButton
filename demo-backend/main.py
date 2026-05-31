@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import image, form, health
+from api.routes import image, form, health, tasks
 import os
 from dotenv import load_dotenv
 
@@ -23,6 +23,7 @@ app.add_middleware(
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(image.router, prefix="/api/image", tags=["Image"])
 app.include_router(form.router, prefix="/api/form", tags=["Form"])
+app.include_router(tasks.router, prefix="/api/tasks", tags=["Tasks"])
 
 @app.get("/")
 async def root():
