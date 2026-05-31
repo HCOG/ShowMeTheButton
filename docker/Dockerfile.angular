@@ -1,0 +1,112 @@
+# ShowMeTheButton Docker Files
+
+## Dockerfile.python
+
+```dockerfile
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# 复制依赖文件
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制应用代码
+COPY . .
+
+# 暴露端口
+EXPOSE 8000
+
+# 启动命令
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+## Dockerfile.angular
+
+```dockerfile
+# Angular 应用使用 nginx 运行
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# 复制 package 文件
+COPY package*.json ./
+RUN npm ci
+
+# 复制源代码
+COPY . .
+RUN npm run build
+
+# 生产镜像
+FROM nginx:alpine
+
+# 复制 nginx 配置
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+
+# 复制构建产物
+COPY --from=builder /app/dist/show-me-angular-demo /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+## nginx.conf
+
+```nginx
+server {
+    listen 80;
+    server_name localhost;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API 代理到后端
+    location /api/ {
+        proxy_pass http://demo-backend:8000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Agent API 代理
+    location /agent/ {
+        proxy_pass http://show-me-agent:8000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+## .env.example
+
+```bash
+# MiniMax API配置
+MINIMAX_API_KEY=your_minimax_api_key_here
+MINIMAX_API_URL=https://api.minimax.chat/v1
+
+# Ollama配置（可选，用于本地LLM）
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
+
+# ChromaDB配置
+CHROMA_DB_PATH=./knowledge-base/chroma
+
+# 知识库路径
+KNOWLEDGE_BASE_PATH=./docs
+
+# Agent服务配置
+AGENT_PORT=8001
+AGENT_HOST=0.0.0.0
+
+# Demo后端配置
+DEMO_PORT=8000
+DEMO_HOST=0.0.0.0
+```

@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # Angular Demo 应用
+  angular-demo:
+    build:
+      context: ../angular-demo
+      dockerfile: ../docker/Dockerfile.angular
+    ports:
+      - "4200:80"
+    environment:
+      - API_BASE_URL=http://demo-backend:8000
+    depends_on:
+      - demo-backend
+    networks:
+      - shownetwork
+
+  # Demo 应用后端
+  demo-backend:
+    build:
+      context: ../demo-backend
+      dockerfile: ../docker/Dockerfile.python
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ../demo-backend:/app
+    networks:
+      - shownetwork
+
+  # Show-Me Agent 服务
+  show-me-agent:
+    build:
+      context: ../show-me-agent
+      dockerfile: ../docker/Dockerfile.python
+    ports:
+      - "8001:8000"
+    environment:
+      - PYTHONPATH=/app
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY}
+      - MINIMAX_API_URL=${MINIMAX_API_URL}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://localhost:11434}
+      - CHROMA_DB_PATH=/data/chroma
+      - KNOWLEDGE_BASE_PATH=/data/knowledge
+    volumes:
+      - chroma-data:/data/chroma
+      - knowledge-data:/data/knowledge
+      - ../knowledge-base:/app/knowledge-base:ro
+    depends_on:
+      - chromadb
+    networks:
+      - shownetwork
+
+  # ChromaDB 向量数据库
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8002:8000"
+    volumes:
+      - chroma-data:/data
+    networks:
+      - shownetwork
+
+networks:
+  shownetwork:
+    driver: bridge
+
+volumes:
+  chroma-data:
+  knowledge-data:
