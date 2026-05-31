@@ -1,0 +1,133 @@
+<div class="image-editor-container">
+  <header class="editor-header">
+    <h1>🖼️ 图片编辑器</h1>
+    <div class="header-actions">
+      <button class="btn btn-sm" id="btn-undo" (click)="undo()">↩️ 撤销</button>
+      <button class="btn btn-sm" id="btn-redo" (click)="redo()">↪️ 重做</button>
+      <button class="btn btn-sm btn-primary" id="btn-save" (click)="save()">💾 保存</button>
+      <button class="btn btn-sm btn-success" id="btn-export" (click)="export()">📤 导出</button>
+    </div>
+  </header>
+  
+  <div class="editor-main">
+    <aside class="toolbar-left">
+      <div class="tool-group">
+        <h3>工具</h3>
+        <button 
+          *ngFor="let tool of tools" 
+          class="tool-btn"
+          [class.active]="activeTool === tool.id"
+          (click)="setTool(tool.id)"
+          [title]="tool.label">
+          <span class="tool-icon">{{ tool.icon }}</span>
+          <span class="tool-label">{{ tool.label }}</span>
+        </button>
+      </div>
+      
+      <div class="tool-group">
+        <h3>调整</h3>
+        <button class="tool-btn" id="btn-brightness" (click)="adjustBrightness(10)">☀️ 亮度</button>
+        <button class="tool-btn" id="btn-contrast" (click)="adjustContrast(10)">◐ 对比度</button>
+        <button class="tool-btn" id="btn-saturation">🎨 饱和度</button>
+        <button class="tool-btn" id="btn-hue">🌈 色相</button>
+      </div>
+      
+      <div class="tool-group">
+        <h3>滤镜</h3>
+        <button class="tool-btn" id="btn-filter-vintage" (click)="applyFilter('vintage')">📜 复古</button>
+        <button class="tool-btn" id="btn-filter-bw" (click)="applyFilter('blackwhite')">⬛ 黑白</button>
+        <button class="tool-btn" id="btn-filter-blur">💫 模糊</button>
+        <button class="tool-btn" id="btn-filter-sharpen">✨ 锐化</button>
+      </div>
+    </aside>
+    
+    <main class="canvas-area">
+      <div class="canvas-toolbar">
+        <button class="btn btn-sm" id="btn-load-image" (click)="loadImage()">📂 打开图片</button>
+        <button class="btn btn-sm" id="btn-zoom-in" (click)="zoomIn()">🔍+</button>
+        <button class="btn btn-sm" id="btn-zoom-out" (click)="zoomOut()">🔍-</button>
+        <button class="btn btn-sm" id="btn-reset" (click)="resetCanvas()">🔄 重置</button>
+        <span class="zoom-level">100%</span>
+      </div>
+      
+      <div class="canvas-container">
+        <div class="canvas" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight">
+          <div class="canvas-placeholder">
+            <p>🖼️ 请加载图片或在此处创建新画布</p>
+            <button class="btn btn-primary" id="btn-create-canvas" (click)="loadImage()">
+              创建空白画布
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="canvas-status">
+        <span>画布大小: {{ canvasWidth }} × {{ canvasHeight }}</span>
+        <span>缩放: 100%</span>
+        <span>工具: {{ activeTool }}</span>
+      </div>
+    </main>
+    
+    <aside class="panel-right">
+      <div class="panel layers-panel">
+        <h3>📑 图层</h3>
+        <button class="btn btn-sm btn-block" id="btn-add-layer" (click)="addLayer()">
+          ➕ 新建图层
+        </button>
+        
+        <div class="layer-list">
+          <div *ngFor="let layer of layers" class="layer-item">
+            <button 
+              class="layer-btn"
+              [class.visible]="layer.visible"
+              [class.locked]="layer.locked"
+              (click)="toggleLayerVisibility(layer.id)">
+              {{ layer.visible ? '👁️' : '🚫' }}
+            </button>
+            <span class="layer-name">{{ layer.name }}</span>
+            <button class="layer-btn delete" (click)="deleteLayer(layer.id)">🗑️</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="panel properties-panel">
+        <h3>⚙️ 属性</h3>
+        <div class="property-group">
+          <label>位置 X:</label>
+          <input type="number" value="0" class="property-input">
+        </div>
+        <div class="property-group">
+          <label>位置 Y:</label>
+          <input type="number" value="0" class="property-input">
+        </div>
+        <div class="property-group">
+          <label>宽度:</label>
+          <input type="number" [value]="canvasWidth" class="property-input">
+        </div>
+        <div class="property-group">
+          <label>高度:</label>
+          <input type="number" [value]="canvasHeight" class="property-input">
+        </div>
+        <div class="property-group">
+          <label>旋转:</label>
+          <input type="number" value="0" class="property-input">°
+        </div>
+      </div>
+      
+      <div class="panel history-panel">
+        <h3>📜 历史</h3>
+        <div class="history-list">
+          <button class="btn btn-sm btn-block" id="btn-history-1">✓ 打开图片</button>
+          <button class="btn btn-sm btn-block" id="btn-history-2">✓ 调整亮度</button>
+          <button class="btn btn-sm btn-block" id="btn-history-3">✓ 应用滤镜</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+  
+  <footer class="editor-footer">
+    <button class="btn btn-sm" id="btn-help">❓ 帮助</button>
+    <button class="btn btn-sm" id="btn-shortcuts">⌨️ 快捷键</button>
+    <button class="btn btn-sm" id="btn-about-image">ℹ️ 关于</button>
+  </footer>
+</div>

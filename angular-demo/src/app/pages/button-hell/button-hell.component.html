@@ -1,0 +1,405 @@
+<div class="button-hell-container">
+  <header class="page-header">
+    <h1>企业管理系统 - 按钮地狱演示</h1>
+    <p class="subtitle">这是一个包含大量按钮的复杂页面，用于测试ShowMeTheButton SDK</p>
+    
+    <div class="header-actions">
+      <button class="btn btn-primary btn-lg" id="btn-add-new" (click)="addNewItem()">
+        ➕ 新建
+      </button>
+      
+      <div class="dropdown" [class.open]="isDropdownOpen">
+        <button class="btn btn-secondary" id="btn-more-actions" (click)="toggleDropdown('dropdown')">
+          更多操作 ▾
+        </button>
+        <div class="dropdown-menu" *ngIf="isDropdownOpen">
+          <button class="dropdown-item" id="btn-import" (click)="importData(); toggleDropdown('dropdown')">
+            📥 导入数据
+          </button>
+          <button class="dropdown-item" id="btn-export" (click)="toggleExportModal()">
+            📤 导出数据
+          </button>
+          <button class="dropdown-item" id="btn-archive" (click)="archiveData()">
+            📦 数据归档
+          </button>
+          <button class="dropdown-item" id="btn-backup" (click)="backupSystem()">
+            💾 系统备份
+          </button>
+          <button class="dropdown-item" id="btn-restore" (click)="restoreSystem()">
+            🔄 系统恢复
+          </button>
+        </div>
+      </div>
+      
+      <button class="btn btn-outline" id="btn-refresh" (click)="refreshData()">
+        🔄 刷新
+      </button>
+      
+      <div class="user-menu dropdown" [class.open]="isUserMenuOpen">
+        <button class="btn btn-user" id="btn-user-menu" (click)="toggleDropdown('user')">
+          👤 管理员 ▾
+        </button>
+        <div class="dropdown-menu" *ngIf="isUserMenuOpen">
+          <button class="dropdown-item" id="btn-profile">👤 个人资料</button>
+          <button class="dropdown-item" id="btn-settings" (click)="toggleSettingsModal()">⚙️ 账户设置</button>
+          <button class="dropdown-item" id="btn-logout">🚪 退出登录</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  
+  <nav class="tab-navigation">
+    <button 
+      *ngFor="let tab of tabs" 
+      class="tab-button"
+      [class.active]="activeTab === tab.id"
+      (click)="setActiveTab(tab.id)">
+      {{ tab.icon }} {{ tab.label }}
+    </button>
+  </nav>
+  
+  <main class="content-area">
+    <div *ngIf="activeTab === 'data'" class="tab-content">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <button class="btn btn-sm btn-primary" id="btn-add-row" (click)="addNewItem()">
+            ➕ 添加
+          </button>
+          <button class="btn btn-sm btn-danger" id="btn-delete-selected" 
+                  [disabled]="selectedItems.size === 0"
+                  (click)="toggleDeleteModal()">
+            🗑️ 删除 ({{ selectedItems.size }})
+          </button>
+          <button class="btn btn-sm btn-secondary" id="btn-generate" (click)="generateReport()">
+            📊 生成报表
+          </button>
+        </div>
+        
+        <div class="toolbar-right">
+          <button class="btn btn-sm btn-icon" id="btn-filter" title="筛选">
+            🔍
+          </button>
+          <button class="btn btn-sm btn-icon" id="btn-sort" title="排序">
+            ↕️
+          </button>
+          <button class="btn btn-sm btn-icon" id="btn-columns" title="列设置">
+            ⚙️
+          </button>
+        </div>
+      </div>
+      
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="col-checkbox">
+                <input type="checkbox" 
+                       [checked]="selectAllChecked"
+                       (change)="toggleSelectAll()"
+                       id="checkbox-select-all">
+              </th>
+              <th class="col-id">ID</th>
+              <th class="col-name">报表名称</th>
+              <th class="col-status">状态</th>
+              <th class="col-date">日期</th>
+              <th class="col-author">作者</th>
+              <th class="col-actions">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of tableData" 
+                [class.selected]="selectedItems.has(item.id)">
+              <td>
+                <input type="checkbox"
+                       [checked]="selectedItems.has(item.id)"
+                       (change)="toggleSelectItem(item.id)">
+              </td>
+              <td>{{ item.id }}</td>
+              <td>{{ item.name }}</td>
+              <td>
+                <span class="status-badge" [class]="'status-' + item.status">
+                  {{ item.status }}
+                </span>
+              </td>
+              <td>{{ item.date }}</td>
+              <td>{{ item.author }}</td>
+              <td class="actions-cell">
+                <div class="action-buttons">
+                  <button class="btn btn-xs btn-icon" id="btn-edit-{{item.id}}" 
+                          (click)="editItem(item.id)" title="编辑">
+                    ✏️
+                  </button>
+                  <button class="btn btn-xs btn-icon" id="btn-copy-{{item.id}}"
+                          (click)="duplicateItem(item.id)" title="复制">
+                    📋
+                  </button>
+                  <button class="btn btn-xs btn-icon" id="btn-share-{{item.id}}"
+                          (click)="shareItem(item.id)" title="分享">
+                    🔗
+                  </button>
+                  <button class="btn btn-xs btn-icon" id="btn-download-{{item.id}}"
+                          (click)="downloadItem(item.id)" title="下载">
+                    ⬇️
+                  </button>
+                  <button class="btn btn-xs btn-icon" id="btn-history-{{item.id}}"
+                          (click)="viewHistory(item.id)" title="历史">
+                    📜
+                  </button>
+                  <div class="mini-dropdown">
+                    <button class="btn btn-xs btn-icon" id="btn-more-{{item.id}}">⋯</button>
+                    <div class="mini-dropdown-menu">
+                      <button class="mini-dropdown-item" id="btn-preview-{{item.id}}">👁️ 预览</button>
+                      <button class="mini-dropdown-item" id="btn-publish-{{item.id}}">🌐 发布</button>
+                      <button class="mini-dropdown-item" id="btn-archive-{{item.id}}">📦 归档</button>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="pagination">
+        <button class="btn btn-sm" id="btn-prev-page" disabled>◀ 上一页</button>
+        <span class="page-info">第 1 页 / 共 5 页</span>
+        <button class="btn btn-sm" id="btn-next-page">下一页 ▶</button>
+        <button class="btn btn-sm" id="btn-first-page">⏮ 首页</button>
+        <button class="btn btn-sm" id="btn-last-page">⏭ 末页</button>
+      </div>
+    </div>
+    
+    <div *ngIf="activeTab === 'report'" class="tab-content">
+      <div class="report-cards">
+        <div class="report-card">
+          <h3>月度销售报表</h3>
+          <p>查看月度销售数据统计和分析</p>
+          <div class="card-actions">
+            <button class="btn btn-sm btn-primary" id="btn-view-sales">👁️ 查看</button>
+            <button class="btn btn-sm btn-secondary" id="btn-download-sales">⬇️ 下载</button>
+            <button class="btn btn-sm btn-outline" id="btn-share-sales">🔗 分享</button>
+          </div>
+        </div>
+        
+        <div class="report-card">
+          <h3>财务对账单</h3>
+          <p>核对本月财务收支情况</p>
+          <div class="card-actions">
+            <button class="btn btn-sm btn-primary" id="btn-view-finance">👁️ 查看</button>
+            <button class="btn btn-sm btn-secondary" id="btn-export-finance">📤 导出</button>
+            <button class="btn btn-sm btn-outline" id="btn-approve-finance">✅ 审批</button>
+          </div>
+        </div>
+        
+        <div class="report-card">
+          <h3>用户活跃度</h3>
+          <p>分析用户活跃度和留存情况</p>
+          <div class="card-actions">
+            <button class="btn btn-sm btn-primary" id="btn-view-users">👁️ 查看</button>
+            <button class="btn btn-sm btn-secondary" id="btn-export-users">📤 导出</button>
+            <button class="btn btn-sm btn-warning" id="btn-refresh-users">🔄 更新</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="batch-actions">
+        <h4>批量操作</h4>
+        <button class="btn btn-lg btn-primary" id="btn-batch-export" (click)="toggleExportModal()">
+          📤 批量导出
+        </button>
+        <button class="btn btn-lg btn-secondary" id="btn-batch-print">
+          🖨️ 批量打印
+        </button>
+        <button class="btn btn-lg btn-outline" id="btn-batch-email">
+          ✉️ 批量发送
+        </button>
+      </div>
+    </div>
+    
+    <div *ngIf="activeTab === 'settings'" class="tab-content">
+      <div class="settings-groups">
+        <div class="settings-group">
+          <h3>系统设置</h3>
+          <button class="btn btn-block" id="btn-general-settings">⚙️ 常规设置</button>
+          <button class="btn btn-block" id="btn-security-settings">🔒 安全设置</button>
+          <button class="btn btn-block" id="btn-notification-settings">🔔 通知设置</button>
+          <button class="btn btn-block" id="btn-email-settings">📧 邮件设置</button>
+        </div>
+        
+        <div class="settings-group">
+          <h3>数据库管理</h3>
+          <button class="btn btn-block btn-success" id="btn-test-db" (click)="testConnection()">
+            🔍 测试连接
+          </button>
+          <button class="btn btn-block btn-info" id="btn-optimize-db" (click)="optimizeDatabase()">
+            ⚡ 优化数据库
+          </button>
+          <button class="btn btn-block btn-warning" id="btn-clear-cache" (click)="clearCache()">
+            🗑️ 清除缓存
+          </button>
+          <button class="btn btn-block btn-secondary" id="btn-backup-db">
+            💾 备份数据库
+          </button>
+        </div>
+        
+        <div class="settings-group">
+          <h3>配置导入/导出</h3>
+          <button class="btn btn-block btn-primary" id="btn-export-config" (click)="exportSettings()">
+            📤 导出配置
+          </button>
+          <button class="btn btn-block btn-secondary" id="btn-import-config" (click)="importSettings()">
+            📥 导入配置
+          </button>
+          <button class="btn btn-block btn-danger" id="btn-reset-config" (click)="resetSettings()">
+            🔄 重置为默认
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <div *ngIf="activeTab === 'users'" class="tab-content">
+      <div class="user-management">
+        <div class="toolbar">
+          <button class="btn btn-primary" id="btn-add-user">➕ 添加用户</button>
+          <button class="btn btn-secondary" id="btn-import-users">📥 批量导入</button>
+          <button class="btn btn-outline" id="btn-export-users-list">📤 导出用户</button>
+        </div>
+        
+        <div class="notification-panel">
+          <h4>系统通知</h4>
+          <button class="btn btn-block btn-sm" id="btn-send-notification"
+                  *ngFor="let notif of notifications"
+                  (click)="sendNotification(notif)">
+            {{ notif }}
+          </button>
+          <button class="btn btn-danger btn-block" id="btn-clear-all" 
+                  *ngIf="notifications.length > 0"
+                  (click)="clearNotifications()">
+            🗑️ 清除所有通知
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <footer class="page-footer">
+    <button class="btn btn-help" id="btn-help" (click)="toggleHelpModal()">
+      ❓ 帮助
+    </button>
+    <button class="btn btn-feedback" id="btn-feedback">
+      💬 反馈
+    </button>
+    <button class="btn btn-about" id="btn-about">
+      ℹ️ 关于
+    </button>
+  </footer>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" *ngIf="showExportModal" (click)="toggleExportModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>导出数据</h2>
+      <button class="modal-close" id="btn-close-export" (click)="toggleExportModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>选择导出格式：</p>
+      <div class="format-options">
+        <label class="radio-option" *ngFor="let format of exportFormats">
+          <input type="radio" 
+                 name="exportFormat" 
+                 [value]="format"
+                 [(ngModel)]="selectedFormat">
+          {{ format }}
+        </label>
+      </div>
+      <button class="btn btn-secondary" id="btn-advanced-options">
+        ⚙️ 高级选项
+      </button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-cancel-export" (click)="toggleExportModal()">
+        取消
+      </button>
+      <button class="btn btn-primary" id="btn-confirm-export" (click)="exportReport()">
+        确认导出
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" *ngIf="showDeleteModal" (click)="toggleDeleteModal()">
+  <div class="modal-content modal-sm" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>确认删除</h2>
+      <button class="modal-close" id="btn-close-delete" (click)="toggleDeleteModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>确定要删除选中的 {{ selectedItems.size }} 条记录吗？</p>
+      <p class="warning-text">⚠️ 此操作不可恢复！</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-cancel-delete" (click)="toggleDeleteModal()">
+        取消
+      </button>
+      <button class="btn btn-danger" id="btn-confirm-delete" (click)="deleteSelected()">
+        确认删除
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" *ngIf="showSettingsModal" (click)="toggleSettingsModal()">
+  <div class="modal-content modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>账户设置</h2>
+      <button class="modal-close" id="btn-close-settings" (click)="toggleSettingsModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-tabs">
+        <button class="settings-tab active" id="btn-tab-profile">👤 基本信息</button>
+        <button class="settings-tab" id="btn-tab-security">🔒 安全设置</button>
+        <button class="settings-tab" id="btn-tab-preferences">⚙️ 偏好设置</button>
+        <button class="settings-tab" id="btn-tab-api">🔑 API设置</button>
+      </div>
+      <div class="settings-content">
+        <p>在此处编辑您的账户设置...</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-cancel-settings" (click)="toggleSettingsModal()">
+        取消
+      </button>
+      <button class="btn btn-primary" id="btn-save-settings" (click)="saveSettings()">
+        保存设置
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal-overlay" *ngIf="showHelpModal" (click)="toggleHelpModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>帮助中心</h2>
+      <button class="modal-close" id="btn-close-help" (click)="toggleHelpModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="help-topics">
+        <button class="help-topic" id="btn-help-quickstart">🚀 快速开始</button>
+        <button class="help-topic" id="btn-help-user-guide">📖 用户指南</button>
+        <button class="help-topic" id="btn-help-faq">❓ 常见问题</button>
+        <button class="help-topic" id="btn-help-video">🎥 视频教程</button>
+        <button class="help-topic" id="btn-help-contact">📞 联系支持</button>
+        <button class="help-topic" id="btn-help-feedback">💬 意见反馈</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btn-view-all-help" (click)="toggleHelpModal()">
+        查看全部帮助
+      </button>
+    </div>
+  </div>
+</div>

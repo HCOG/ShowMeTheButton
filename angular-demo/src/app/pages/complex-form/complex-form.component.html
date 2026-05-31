@@ -1,0 +1,610 @@
+<div class="complex-form-container">
+  <div class="form-header">
+    <h1>员工入职登记表</h1>
+    <p class="subtitle">请完整填写以下信息，带 * 号的为必填项</p>
+    
+    <div class="form-actions">
+      <button class="btn btn-secondary" id="btn-auto-fill" (click)="autoFill()">
+        🤖 自动填充
+      </button>
+      <button class="btn btn-outline" id="btn-preview" (click)="previewForm()">
+        👁️ 预览
+      </button>
+      <button class="btn btn-outline" id="btn-save-draft" (click)="saveDraft()">
+        💾 保存草稿
+      </button>
+      <button class="btn btn-outline" id="btn-reset" (click)="resetForm()">
+        🔄 重置
+      </button>
+    </div>
+  </div>
+  
+  <div class="progress-container">
+    <div class="progress-bar">
+      <div class="progress-fill" [style.width.%]="calculateProgress()"></div>
+    </div>
+    <div class="step-indicators">
+      <div 
+        *ngFor="let step of [1, 2, 3, 4]" 
+        class="step-indicator"
+        [class.active]="currentStep === step"
+        [class.completed]="currentStep > step">
+        <div class="step-number">{{ step }}</div>
+        <div class="step-label">{{ getStepTitle(step) }}</div>
+      </div>
+    </div>
+  </div>
+  
+  <form class="form-content" (ngSubmit)="submitForm()">
+    <div class="form-step" *ngIf="currentStep === 1">
+      <h2>第一步：个人信息</h2>
+      
+      <div class="form-section">
+        <h3>基本信息</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="firstName">名 <span class="required">*</span></label>
+            <input 
+              type="text" 
+              id="firstName"
+              [(ngModel)]="formData.personalInfo.firstName"
+              name="firstName"
+              placeholder="请输入名">
+          </div>
+          
+          <div class="form-group">
+            <label for="lastName">姓 <span class="required">*</span></label>
+            <input 
+              type="text" 
+              id="lastName"
+              [(ngModel)]="formData.personalInfo.lastName"
+              name="lastName"
+              placeholder="请输入姓">
+          </div>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="email">电子邮箱 <span class="required">*</span></label>
+            <input 
+              type="email" 
+              id="email"
+              [(ngModel)]="formData.personalInfo.email"
+              name="email"
+              placeholder="example@company.com">
+          </div>
+          
+          <div class="form-group">
+            <label for="phone">手机号码 <span class="required">*</span></label>
+            <input 
+              type="tel" 
+              id="phone"
+              [(ngModel)]="formData.personalInfo.phone"
+              name="phone"
+              placeholder="13800138000">
+          </div>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="dateOfBirth">出生日期</label>
+            <input 
+              type="date" 
+              id="dateOfBirth"
+              [(ngModel)]="formData.personalInfo.dateOfBirth"
+              name="dateOfBirth">
+          </div>
+          
+          <div class="form-group">
+            <label for="gender">性别</label>
+            <select 
+              id="gender"
+              [(ngModel)]="formData.personalInfo.gender"
+              name="gender">
+              <option value="">请选择</option>
+              <option value="male">男</option>
+              <option value="female">女</option>
+              <option value="other">其他</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="nationality">国籍</label>
+            <select 
+              id="nationality"
+              [(ngModel)]="formData.personalInfo.nationality"
+              name="nationality">
+              <option value="">请选择</option>
+              <option *ngFor="let country of countries" [value]="country">
+                {{ country }}
+              </option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="maritalStatus">婚姻状况</label>
+            <select 
+              id="maritalStatus"
+              [(ngModel)]="formData.personalInfo.maritalStatus"
+              name="maritalStatus">
+              <option value="">请选择</option>
+              <option value="single">未婚</option>
+              <option value="married">已婚</option>
+              <option value="divorced">离异</option>
+              <option value="widowed">丧偶</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="idNumber">身份证号码 <span class="required">*</span></label>
+          <input 
+            type="text" 
+            id="idNumber"
+            [(ngModel)]="formData.personalInfo.idNumber"
+            name="idNumber"
+            placeholder="请输入18位身份证号码">
+        </div>
+      </div>
+      
+      <div class="dynamic-fields-section">
+        <div class="section-header">
+          <h3>动态附加字段</h3>
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-add-field" (click)="addDynamicField()">
+            ➕ 添加字段
+          </button>
+        </div>
+        
+        <div class="dynamic-fields">
+          <div *ngFor="let field of dynamicFields" class="dynamic-field-row">
+            <div class="form-group">
+              <label>字段名称</label>
+              <input type="text" [(ngModel)]="field.label" [name]="'field-label-' + field.id">
+            </div>
+            <div class="form-group">
+              <label>字段值</label>
+              <input type="text" [(ngModel)]="field.value" [name]="'field-value-' + field.id" placeholder="请输入值">
+            </div>
+            <button type="button" class="btn btn-xs btn-danger" (click)="removeDynamicField(field.id)">🗑️</button>
+          </div>
+          
+          <p *ngIf="dynamicFields.length === 0" class="no-fields">
+            暂无附加字段，点击"添加字段"按钮添加
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-step" *ngIf="currentStep === 2">
+      <h2>第二步：地址信息</h2>
+      
+      <div class="form-section">
+        <div class="form-group">
+          <label for="street">街道地址 <span class="required">*</span></label>
+          <input 
+            type="text" 
+            id="street"
+            [(ngModel)]="formData.address.street"
+            name="street"
+            placeholder="请输入街道名称和门牌号">
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="city">城市 <span class="required">*</span></label>
+            <input 
+              type="text" 
+              id="city"
+              [(ngModel)]="formData.address.city"
+              name="city"
+              placeholder="请输入城市">
+          </div>
+          
+          <div class="form-group">
+            <label for="state">省份/州</label>
+            <input 
+              type="text" 
+              id="state"
+              [(ngModel)]="formData.address.state"
+              name="state"
+              placeholder="请输入省份或州">
+          </div>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="zipCode">邮政编码 <span class="required">*</span></label>
+            <input 
+              type="text" 
+              id="zipCode"
+              [(ngModel)]="formData.address.zipCode"
+              name="zipCode"
+              placeholder="请输入邮政编码">
+          </div>
+          
+          <div class="form-group">
+            <label for="country">国家 <span class="required">*</span></label>
+            <select 
+              id="country"
+              [(ngModel)]="formData.address.country"
+              name="country">
+              <option value="">请选择</option>
+              <option *ngFor="let country of countries" [value]="country">
+                {{ country }}
+              </option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="advanced-toggle">
+          <button type="button" class="btn btn-link" (click)="showAdvancedAddress = !showAdvancedAddress">
+            ⚙️ {{ showAdvancedAddress ? '隐藏' : '显示' }}高级选项
+          </button>
+        </div>
+        
+        <div class="advanced-options" *ngIf="showAdvancedAddress">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="apartment">公寓/套房</label>
+              <input 
+                type="text" 
+                id="apartment"
+                [(ngModel)]="formData.address.apartment"
+                name="apartment"
+                placeholder="公寓号">
+            </div>
+            
+            <div class="form-group">
+              <label for="floor">楼层</label>
+              <input 
+                type="text" 
+                id="floor"
+                [(ngModel)]="formData.address.floor"
+                name="floor"
+                placeholder="楼层">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="building">楼栋/小区</label>
+            <input 
+              type="text" 
+              id="building"
+              [(ngModel)]="formData.address.building"
+              name="building"
+              placeholder="楼栋或小区名称">
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-step" *ngIf="currentStep === 3">
+      <h2>第三步：就业信息</h2>
+      
+      <div class="form-section">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="companyName">公司名称 <span class="required">*</span></label>
+            <input 
+              type="text" 
+              id="companyName"
+              [(ngModel)]="formData.employment.companyName"
+              name="companyName"
+              placeholder="请输入公司名称">
+          </div>
+          
+          <div class="form-group">
+            <label for="employeeId">员工编号</label>
+            <input 
+              type="text" 
+              id="employeeId"
+              [(ngModel)]="formData.employment.employeeId"
+              name="employeeId"
+              placeholder="系统自动生成">
+          </div>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="jobTitle">职位 <span class="required">*</span></label>
+            <input 
+              type="text" 
+              id="jobTitle"
+              [(ngModel)]="formData.employment.jobTitle"
+              name="jobTitle"
+              placeholder="请输入职位名称">
+          </div>
+          
+          <div class="form-group">
+            <label for="department">部门 <span class="required">*</span></label>
+            <select 
+              id="department"
+              [(ngModel)]="formData.employment.department"
+              name="department">
+              <option value="">请选择部门</option>
+              <option *ngFor="let dept of departments" [value]="dept">
+                {{ dept }}
+              </option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="employmentType">雇佣类型 <span class="required">*</span></label>
+            <select 
+              id="employmentType"
+              [(ngModel)]="formData.employment.employmentType"
+              name="employmentType">
+              <option value="">请选择</option>
+              <option *ngFor="let type of employmentTypes" [value]="type">
+                {{ type }}
+              </option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="startDate">入职日期 <span class="required">*</span></label>
+            <input 
+              type="date" 
+              id="startDate"
+              [(ngModel)]="formData.employment.startDate"
+              name="startDate">
+          </div>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="salary">预期薪资</label>
+            <input 
+              type="number" 
+              id="salary"
+              [(ngModel)]="formData.employment.salary"
+              name="salary"
+              placeholder="请输入月薪">
+          </div>
+          
+          <div class="form-group">
+            <label for="manager">直属上级</label>
+            <input 
+              type="text" 
+              id="manager"
+              [(ngModel)]="formData.employment.manager"
+              name="manager"
+              placeholder="请输入上级姓名">
+          </div>
+        </div>
+        
+        <div class="advanced-toggle">
+          <button type="button" class="btn btn-link" (click)="showAdvancedEmployment = !showAdvancedEmployment">
+            ⚙️ {{ showAdvancedEmployment ? '隐藏' : '显示' }}高级选项
+          </button>
+        </div>
+        
+        <div class="advanced-options" *ngIf="showAdvancedEmployment">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="workEmail">工作邮箱</label>
+              <input 
+                type="email" 
+                id="workEmail"
+                [(ngModel)]="formData.employment.workEmail"
+                name="workEmail"
+                placeholder="work@company.com">
+            </div>
+            
+            <div class="form-group">
+              <label for="workPhone">工作电话</label>
+              <input 
+                type="tel" 
+                id="workPhone"
+                [(ngModel)]="formData.employment.workPhone"
+                name="workPhone"
+                placeholder="请输入工作电话">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-step" *ngIf="currentStep === 4">
+      <h2>第四步：文档与偏好设置</h2>
+      
+      <div class="form-section">
+        <h3>证件信息</h3>
+        
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input 
+              type="checkbox"
+              [(ngModel)]="formData.documents.hasPassport"
+              name="hasPassport">
+            我有护照
+          </label>
+        </div>
+        
+        <div class="conditional-fields" *ngIf="formData.documents.hasPassport">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="passportNumber">护照号码</label>
+              <input 
+                type="text" 
+                id="passportNumber"
+                [(ngModel)]="formData.documents.passportNumber"
+                name="passportNumber"
+                placeholder="请输入护照号码">
+            </div>
+            
+            <div class="form-group">
+              <label for="passportExpiry">有效期至</label>
+              <input 
+                type="date" 
+                id="passportExpiry"
+                [(ngModel)]="formData.documents.passportExpiry"
+                name="passportExpiry">
+            </div>
+          </div>
+          
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-upload-passport" (click)="uploadFile('护照')">
+            📎 上传护照扫描件
+          </button>
+        </div>
+        
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input 
+              type="checkbox"
+              [(ngModel)]="formData.documents.hasDriverLicense"
+              name="hasDriverLicense">
+            我有驾驶证
+          </label>
+        </div>
+        
+        <div class="conditional-fields" *ngIf="formData.documents.hasDriverLicense">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="driverLicenseNumber">驾驶证号码</label>
+              <input 
+                type="text" 
+                id="driverLicenseNumber"
+                [(ngModel)]="formData.documents.driverLicenseNumber"
+                name="driverLicenseNumber"
+                placeholder="请输入驾驶证号码">
+            </div>
+            
+            <div class="form-group">
+              <label for="driverLicenseExpiry">有效期至</label>
+              <input 
+                type="date" 
+                id="driverLicenseExpiry"
+                [(ngModel)]="formData.documents.driverLicenseExpiry"
+                name="driverLicenseExpiry">
+            </div>
+          </div>
+          
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-upload-license" (click)="uploadFile('驾驶证')">
+            📎 上传驾驶证扫描件
+          </button>
+        </div>
+        
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-sm btn-outline" id="btn-upload-id" (click)="uploadFile('身份证')">
+            📎 上传身份证扫描件
+          </button>
+          <button type="button" class="btn btn-sm btn-outline" id="btn-download-template" (click)="downloadTemplate()">
+            📥 下载证件模板
+          </button>
+        </div>
+      </div>
+      
+      <div class="form-section">
+        <h3>通知偏好</h3>
+        
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input 
+              type="checkbox"
+              [(ngModel)]="formData.preferences.notifications.email"
+              name="notifyEmail">
+            邮件通知
+          </label>
+          
+          <label class="checkbox-label">
+            <input 
+              type="checkbox"
+              [(ngModel)]="formData.preferences.notifications.sms"
+              name="notifySms">
+            短信通知
+          </label>
+          
+          <label class="checkbox-label">
+            <input 
+              type="checkbox"
+              [(ngModel)]="formData.preferences.notifications.push"
+              name="notifyPush">
+            推送通知
+          </label>
+        </div>
+      </div>
+      
+      <div class="form-section">
+        <h3>系统设置</h3>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="language">界面语言</label>
+            <select 
+              id="language"
+              [(ngModel)]="formData.preferences.language"
+              name="language">
+              <option *ngFor="let lang of languages" [value]="lang.code">
+                {{ lang.name }}
+              </option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="timezone">时区</label>
+            <select 
+              id="timezone"
+              [(ngModel)]="formData.preferences.timezone"
+              name="timezone">
+              <option *ngFor="let tz of timezones" [value]="tz.value">
+                {{ tz.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input 
+              type="checkbox"
+              [(ngModel)]="formData.preferences.newsletter"
+              name="newsletter">
+            订阅新闻通讯
+          </label>
+          
+          <label class="checkbox-label required">
+            <input 
+              type="checkbox"
+              [(ngModel)]="formData.preferences.termsAccepted"
+              name="termsAccepted">
+            我已阅读并同意 <a href="#">服务条款</a> 和 <a href="#">隐私政策</a> <span class="required">*</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-navigation">
+      <button 
+        type="button" 
+        class="btn btn-secondary btn-lg"
+        id="btn-prev"
+        [disabled]="currentStep === 1"
+        (click)="prevStep()">
+        ◀ 上一步
+      </button>
+      
+      <button 
+        type="button" 
+        class="btn btn-primary btn-lg"
+        id="btn-next"
+        *ngIf="currentStep < totalSteps"
+        (click)="nextStep()">
+        下一步 ▶
+      </button>
+      
+      <button 
+        type="submit" 
+        class="btn btn-success btn-lg"
+        id="btn-submit"
+        *ngIf="currentStep === totalSteps"
+        [disabled]="isSubmitting || !formData.preferences.termsAccepted">
+        {{ isSubmitting ? '提交中...' : '✓ 提交表单' }}
+      </button>
+    </div>
+  </form>
+</div>

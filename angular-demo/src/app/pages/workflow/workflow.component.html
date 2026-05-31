@@ -1,0 +1,152 @@
+<div class="workflow-container">
+  <header class="workflow-header">
+    <h1>🔀 工作流设计器</h1>
+    <div class="header-tabs">
+      <button 
+        class="tab-btn"
+        [class.active]="activeTab === 'design'"
+        (click)="activeTab = 'design'">
+        🎨 设计
+      </button>
+      <button 
+        class="tab-btn"
+        [class.active]="activeTab === 'run'"
+        (click)="activeTab = 'run'">
+        ▶️ 运行
+      </button>
+      <button 
+        class="tab-btn"
+        [class.active]="activeTab === 'history'"
+        (click)="activeTab = 'history'">
+        📜 历史
+      </button>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-sm" id="btn-undo" (click)="undo()">↩️ 撤销</button>
+      <button class="btn btn-sm" id="btn-redo" (click)="redo()">↪️ 重做</button>
+      <button class="btn btn-sm btn-outline" id="btn-import" (click)="importWorkflow()">📥 导入</button>
+      <button class="btn btn-sm btn-outline" id="btn-export" (click)="exportWorkflow()">📤 导出</button>
+      <button class="btn btn-sm btn-warning" id="btn-validate" (click)="validateWorkflow()">✓ 验证</button>
+      <button class="btn btn-sm btn-primary" id="btn-save" (click)="saveWorkflow()">💾 保存</button>
+      <button class="btn btn-sm btn-success" id="btn-publish" (click)="publishWorkflow()">🚀 发布</button>
+    </div>
+  </header>
+  
+  <div class="workflow-main">
+    <aside class="toolbar-left">
+      <div class="tool-group">
+        <h3>节点类型</h3>
+        <button class="tool-btn" id="btn-add-start" (click)="addNode()">
+          🟢 开始节点
+        </button>
+        <button class="tool-btn" id="btn-add-task" (click)="addNode()">
+          📝 任务节点
+        </button>
+        <button class="tool-btn" id="btn-add-decision" (click)="addNode()">
+          🔷 判断节点
+        </button>
+        <button class="tool-btn" id="btn-add-end" (click)="addNode()">
+          🔴 结束节点
+        </button>
+        <button class="tool-btn" id="btn-add-subprocess" (click)="addNode()">
+          📦 子流程
+        </button>
+      </div>
+      
+      <div class="tool-group">
+        <h3>工具</h3>
+        <button class="tool-btn" id="btn-zoom-in" (click)="zoomIn()">🔍+</button>
+        <button class="tool-btn" id="btn-zoom-out" (click)="zoomOut()">🔍-</button>
+        <button class="tool-btn" id="btn-fit" (click)="fitToScreen()">⊞</button>
+      </div>
+    </aside>
+    
+    <main class="canvas-area">
+      <div class="canvas-toolbar">
+        <button class="btn btn-sm" id="btn-add-node" (click)="addNode()">➕ 添加节点</button>
+        <button class="btn btn-sm" id="btn-copy" (click)="copyNode(1)">📋 复制</button>
+        <button class="btn btn-sm" id="btn-paste" (click)="pasteNode()">📄 粘贴</button>
+        <button class="btn btn-sm btn-danger" id="btn-delete" (click)="deleteSelected()">🗑️ 删除</button>
+      </div>
+      
+      <div class="workflow-canvas">
+        <div class="node-list">
+          <div 
+            *ngFor="let node of nodes" 
+            class="workflow-node"
+            [class.start]="node.type === 'start'"
+            [class.task]="node.type === 'task'"
+            [class.decision]="node.type === 'decision'"
+            [class.end]="node.type === 'end'"
+            [class.selected]="selectedNode?.id === node.id"
+            (click)="selectNode(node)"
+            [style.left.px]="node.x"
+            [style.top.px]="node.y">
+            
+            <div class="node-header">
+              {{ node.type === 'start' ? '🟢' : node.type === 'end' ? '🔴' : node.type === 'decision' ? '🔷' : '📝' }}
+            </div>
+            <div class="node-label">{{ node.label }}</div>
+            <div class="node-actions">
+              <button class="node-btn" id="btn-edit-{{node.id}}" (click)="editNode(node.id); $event.stopPropagation()">✏️</button>
+              <button class="node-btn" id="btn-copy-{{node.id}}" (click)="copyNode(node.id); $event.stopPropagation()">📋</button>
+              <button class="node-btn" id="btn-delete-{{node.id}}" (click)="deleteNode(node.id); $event.stopPropagation()">🗑️</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="connections">
+          <div *ngFor="let conn of connections" class="connection-line">
+            <span class="connection-label">{{ conn.label }}</span>
+          </div>
+        </div>
+      </div>
+    </main>
+    
+    <aside class="panel-right">
+      <div class="panel properties-panel" *ngIf="selectedNode">
+        <h3>⚙️ 节点属性</h3>
+        <div class="property-group">
+          <label>节点名称:</label>
+          <input type="text" [value]="selectedNode.label" class="property-input">
+        </div>
+        <div class="property-group">
+          <label>节点类型:</label>
+          <input type="text" [value]="selectedNode.type" class="property-input" disabled>
+        </div>
+        <div class="property-group">
+          <label>描述:</label>
+          <textarea class="property-textarea" rows="3"></textarea>
+        </div>
+        <button class="btn btn-sm btn-primary btn-block" id="btn-apply-changes">✓ 应用更改</button>
+      </div>
+      
+      <div class="panel properties-panel" *ngIf="!selectedNode">
+        <h3>⚙️ 节点属性</h3>
+        <p class="placeholder-text">请选择一个节点查看属性</p>
+      </div>
+      
+      <div class="panel">
+        <h3>📋 工作流设置</h3>
+        <div class="property-group">
+          <label>工作流名称:</label>
+          <input type="text" value="审批流程" class="property-input">
+        </div>
+        <div class="property-group">
+          <label>版本:</label>
+          <input type="text" value="v1.0" class="property-input" disabled>
+        </div>
+        <div class="property-group">
+          <label>状态:</label>
+          <span class="status-badge">草稿</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+  
+  <footer class="workflow-footer">
+    <button class="btn btn-sm" id="btn-help">❓ 帮助</button>
+    <button class="btn btn-sm" id="btn-shortcuts">⌨️ 快捷键</button>
+    <button class="btn btn-sm" id="btn-about">ℹ️ 关于</button>
+  </footer>
+</div>

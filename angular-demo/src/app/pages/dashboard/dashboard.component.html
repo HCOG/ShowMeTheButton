@@ -1,0 +1,116 @@
+<div class="dashboard-container">
+  <header class="dashboard-header">
+    <h1>📊 数据仪表盘</h1>
+    <div class="header-actions">
+      <div class="date-range-selector">
+        <button 
+          *ngFor="let range of ['today', 'last7days', 'last30days', 'thisYear']"
+          class="btn btn-sm"
+          [class.active]="dateRange === range"
+          (click)="setDateRange(range)">
+          {{ range === 'today' ? '今天' : range === 'last7days' ? '最近7天' : range === 'last30days' ? '最近30天' : '今年' }}
+        </button>
+      </div>
+      <button class="btn btn-sm" id="btn-refresh" (click)="refreshData()">🔄 刷新</button>
+      <button class="btn btn-sm btn-primary" id="btn-export" (click)="exportReport()">📤 导出报表</button>
+    </div>
+  </header>
+  
+  <div class="metrics-grid">
+    <div *ngFor="let metric of metrics" class="metric-card">
+      <div class="metric-label">{{ metric.label }}</div>
+      <div class="metric-value">{{ metric.value }}</div>
+      <div class="metric-change" [class.up]="metric.trend === 'up'" [class.down]="metric.trend === 'down'">
+        {{ metric.trend === 'up' ? '↑' : '↓' }} {{ metric.change }}%
+      </div>
+    </div>
+  </div>
+  
+  <div class="charts-section">
+    <div class="chart-controls">
+      <h3>销售趋势</h3>
+      <div class="chart-type-selector">
+        <button 
+          *ngFor="let type of charts"
+          class="btn btn-sm"
+          [class.active]="selectedChart === type"
+          (click)="setChartType(type)">
+          {{ type === 'line' ? '📈 折线图' : type === 'bar' ? '📊 柱状图' : type === 'pie' ? '🥧 饼图' : '📉 面积图' }}
+        </button>
+      </div>
+    </div>
+    
+    <div class="chart-container">
+      <div class="chart-placeholder">
+        <div class="chart-bars">
+          <div *ngFor="let data of chartData" class="chart-bar" [style.height.%]="(data.value / 25000) * 100">
+            <span class="bar-value">{{ data.value | number }}</span>
+            <span class="bar-label">{{ data.label }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="data-grid">
+    <div class="data-section">
+      <h3>🏆 热门产品</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>产品名称</th>
+            <th>销量</th>
+            <th>销售额</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let product of topProducts">
+            <td>{{ product.name }}</td>
+            <td>{{ product.sales | number }}</td>
+            <td>{{ product.revenue }}</td>
+            <td>
+              <button class="btn btn-xs btn-primary" id="btn-view-{{product.name}}" (click)="viewDetails(product)">查看</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="data-section">
+      <h3>📦 最新订单</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>订单号</th>
+            <th>客户</th>
+            <th>金额</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let order of recentOrders">
+            <td>{{ order.id }}</td>
+            <td>{{ order.customer }}</td>
+            <td>{{ order.amount }}</td>
+            <td><span class="status-badge">{{ order.status }}</span></td>
+            <td>
+              <button class="btn btn-xs btn-primary" id="btn-view-order-{{order.id}}" (click)="viewDetails(order)">查看</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <div class="quick-actions">
+    <h3>⚡ 快速操作</h3>
+    <div class="action-buttons">
+      <button class="btn btn-primary" id="btn-create-report">📊 创建报表</button>
+      <button class="btn btn-secondary" id="btn-schedule-report">⏰ 定时报表</button>
+      <button class="btn btn-outline" id="btn-share-dashboard">🔗 分享仪表盘</button>
+      <button class="btn btn-outline" id="btn-customize">🎨 自定义布局</button>
+    </div>
+  </div>
+</div>
