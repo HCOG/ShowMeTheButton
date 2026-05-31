@@ -1,20 +1,6 @@
 import { EventBus } from '../bus/EventBus';
 import { SDK_EVENTS } from '../bus/EventBus';
-
-export interface ScannedElement {
-  id: string;
-  element: HTMLElement;
-  bounds: DOMRect;
-  label: string;
-  type: 'button' | 'input' | 'link' | 'menu' | 'tab' | 'icon' | 'other';
-  metadata: {
-    text?: string;
-    icon?: string;
-    disabled?: boolean;
-    ariaLabel?: string;
-    role?: string;
-  };
-}
+import { ScannedElement } from '../types';
 
 const INTERACTIVE_SELECTORS = [
   'button:not([disabled]):not([type="hidden"])',
@@ -73,7 +59,7 @@ export class DOMScanner {
       metadata: {
         text: this.extractText(element),
         icon: this.extractIcon(element),
-        disabled: element.disabled,
+        disabled: (element as HTMLButtonElement).disabled,
         ariaLabel: element.getAttribute('aria-label') || undefined,
         role: element.getAttribute('role') || undefined,
       },

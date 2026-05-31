@@ -1,13 +1,6 @@
 import { EventBus } from '../bus/EventBus';
 import { SDK_EVENTS } from '../bus/EventBus';
-
-export interface CursorConfig {
-  autoHide?: boolean;
-  followMouse?: boolean;
-  zIndex?: number;
-  offsetX?: number;  // 水平偏移
-  offsetY?: number;  // 垂直偏移
-}
+import { CursorConfig } from '../types';
 
 export class CursorEngine {
   private eventBus: EventBus;

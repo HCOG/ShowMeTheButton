@@ -1,27 +1,4 @@
-import { ScannedElement } from '../scanner/DOMScanner';
-
-export interface QueryRequest {
-  query: string;
-  elements: Array<{
-    id: string;
-    label: string;
-    type: string;
-    text?: string;
-  }>;
-  context?: Record<string, any>;
-}
-
-export interface QueryResponse {
-  success: boolean;
-  result?: {
-    target_id: string;
-    confidence: number;
-    reasoning: string;
-    suggestion?: string;
-  };
-  error?: string;
-  latency_ms?: number;
-}
+import { QueryRequest, QueryResponse } from '../types';
 
 export interface TaskStatus {
   task_id: string;
