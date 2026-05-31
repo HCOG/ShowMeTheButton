@@ -1,0 +1,26 @@
+{
+  "name": "@show-me/core",
+  "version": "0.1.0",
+  "description": "ShowMeTheButton Core SDK - Framework-agnostic core functionality",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && vite build",
+    "dev": "vite build --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "dom-scanner",
+    "cursor-navigation",
+    "ui-automation",
+    "user-assistance"
+  ],
+  "author": "ShowMeTheButton",
+  "license": "MIT",
+  "peerDependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}
