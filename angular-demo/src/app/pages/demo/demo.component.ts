@@ -32,16 +32,18 @@ export class DemoComponent implements OnInit, OnDestroy {
     this.statusMessage = '加载SDK中...';
     
     try {
-      // 动态加载SDK脚本
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'http://localhost:5173/dist/show-me-core.iife.js';
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error('SDK加载失败'));
-        document.head.appendChild(script);
-      });
+      // 如果SDK未加载，则动态加载
+      if (typeof (window as any).ShowMeCore === 'undefined') {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'http://localhost:5173/show-me-core.umd.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('SDK文件加载失败'));
+          document.head.appendChild(script);
+        });
+      }
       
-      this.sdk = new ShowMeSDK({
+      this.sdk = new (window as any).ShowMeCore.ShowMeSDK({
         agentEndpoint: 'http://localhost:8001'
       });
       
