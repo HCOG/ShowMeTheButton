@@ -3,8 +3,13 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: 'button-hell',
+    redirectTo: 'demo',
     pathMatch: 'full'
+  },
+  {
+    path: 'demo',
+    loadComponent: () => import('./pages/demo/demo.component')
+      .then(m => m.DemoComponent)
   },
   {
     path: 'button-hell',

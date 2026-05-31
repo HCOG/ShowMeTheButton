@@ -1,0 +1,112 @@
+<div class="demo-container">
+  <div class="demo-header">
+    <h1>🎯 ShowMe SDK 功能演示</h1>
+    <p class="subtitle">测试光标跟随和导航功能</p>
+  </div>
+  
+  <div class="demo-content">
+    <div class="control-panel">
+      <h2>控制面板</h2>
+      
+      <div class="status-section">
+        <h3>📊 当前状态</h3>
+        <div class="status-item">
+          <span class="label">SDK状态:</span>
+          <span class="value" [class.success]="isInitialized" [class.error]="!isInitialized">
+            {{ isInitialized ? '✅ 已加载' : '❌ 未加载' }}
+          </span>
+        </div>
+        <div class="status-item">
+          <span class="label">光标状态:</span>
+          <span class="value" [class.success]="isActive" [class.warning]="!isActive">
+            {{ isActive ? '🟢 激活' : '⚪ 未激活' }}
+          </span>
+        </div>
+        <div class="status-message">
+          {{ statusMessage }}
+        </div>
+      </div>
+      
+      <div class="action-section">
+        <h3>🎮 操作</h3>
+        
+        <div class="button-group">
+          <button 
+            class="btn btn-primary"
+            id="btn-activate"
+            [disabled]="!isInitialized || isActive"
+            (click)="activateCursor()">
+            ✅ 激活光标
+          </button>
+          
+          <button 
+            class="btn btn-secondary"
+            id="btn-deactivate"
+            [disabled]="!isActive"
+            (click)="deactivateCursor()">
+            ⏸️ 停用光标
+          </button>
+        </div>
+        
+        <div class="button-group">
+          <button 
+            class="btn btn-outline"
+            id="btn-scan"
+            [disabled]="!isInitialized"
+            (click)="testScan()">
+            🔍 扫描页面元素
+          </button>
+          
+          <button 
+            class="btn btn-outline"
+            id="btn-fly"
+            [disabled]="!isActive"
+            (click)="testFlyTo()">
+            ✈️ 测试飞向按钮
+          </button>
+        </div>
+      </div>
+      
+      <div class="instruction-section">
+        <h3>📖 使用说明</h3>
+        <ol>
+          <li>点击"激活光标"，会看到一个小光标跟随你的鼠标</li>
+          <li>点击"扫描页面元素"，会在控制台看到扫描结果</li>
+          <li>点击"测试飞向按钮"，光标会飞到"导出"按钮</li>
+          <li>在按钮地狱页面，你可以看到完整的光标导航演示</li>
+        </ol>
+      </div>
+    </div>
+    
+    <div class="info-panel">
+      <h2>💡 功能说明</h2>
+      
+      <div class="feature-card">
+        <h3>🐭 光标跟随</h3>
+        <p>光标会跟随你的鼠标，但有一个小偏移（15px），不会完全遮挡鼠标位置。</p>
+      </div>
+      
+      <div class="feature-card">
+        <h3>✈️ 飞向导航</h3>
+        <p>当用户询问问题时，光标会从当前位置平滑地飞向目标按钮。</p>
+      </div>
+      
+      <div class="feature-card">
+        <h3>💬 悬停提示</h3>
+        <p>光标飞到目标后，会显示Tooltip说明这是什么按钮。</p>
+      </div>
+      
+      <div class="feature-card">
+        <h3>🎨 Shadow DOM</h3>
+        <p>光标使用Shadow DOM实现，完全不影响原应用的样式和布局。</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="demo-footer">
+    <p>提示：建议先进入"按钮地狱"页面测试完整的光标导航功能</p>
+    <button class="btn btn-link" routerLink="/button-hell">
+      前往按钮地狱 →
+    </button>
+  </div>
+</div>

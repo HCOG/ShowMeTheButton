@@ -5,6 +5,8 @@ export interface CursorConfig {
   autoHide?: boolean;
   followMouse?: boolean;
   zIndex?: number;
+  offsetX?: number;  // 水平偏移
+  offsetY?: number;  // 垂直偏移
 }
 
 export class CursorEngine {
@@ -22,6 +24,8 @@ export class CursorEngine {
       autoHide: config.autoHide ?? true,
       followMouse: config.followMouse ?? true,
       zIndex: config.zIndex ?? 999999,
+      offsetX: config.offsetX ?? 15,  // 默认偏移15px
+      offsetY: config.offsetY ?? 15,
     };
   }
 
@@ -92,8 +96,9 @@ export class CursorEngine {
   private handleMouseMove(event: MouseEvent): void {
     if (!this.cursorElement || !this.config.followMouse) return;
     
-    this.cursorElement.style.left = `${event.clientX}px`;
-    this.cursorElement.style.top = `${event.clientY}px`;
+    // 跟随鼠标但有小偏移（光标在鼠标右下方）
+    this.cursorElement.style.left = `${event.clientX + this.config.offsetX}px`;
+    this.cursorElement.style.top = `${event.clientY + this.config.offsetY}px`;
   }
 
   show(): void {

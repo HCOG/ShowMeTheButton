@@ -13,6 +13,7 @@ export class NavbarComponent {
   currentRoute = '';
   
   navItems = [
+    { path: '/demo', label: 'SDK演示', icon: '🎯' },
     { path: '/button-hell', label: '按钮地狱', icon: '🎛️' },
     { path: '/complex-form', label: '复杂表单', icon: '📝' },
     { path: '/image-editor', label: '图片编辑', icon: '🎨' },
