@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+.venv
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+node_modules
+
+# Angular
+.angular/
+dist/
+tmp/
+out-tsc/
+bazel-out
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+dockerdata/
+
+# ChromaDB
+knowledge-base/chroma/
+
+# Logs
+*.log
+logs/
+
+# 测试
+htmlcov/
+.coverage
+.pytest_cache/
