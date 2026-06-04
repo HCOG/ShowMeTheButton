@@ -71,13 +71,40 @@ wait_for_http() {
   die "$label did not come up within ${max}s (see $LOG_DIR)"
 }
 
+agent_deps_ok() { "$PYBIN" -c "import fastapi, uvicorn, httpx" >/dev/null 2>&1; }
+
+ensure_agent_env() {
+  # Prefer an existing project venv if present.
+  [ -x "$AGENT_DIR/.venv/bin/python" ] && PYBIN="$AGENT_DIR/.venv/bin/python"
+
+  # If the chosen interpreter already has the deps and the user didn't force
+  # --install, use it as-is (e.g. an active conda/base env that works today).
+  if [ "$INSTALL" -eq 0 ] && agent_deps_ok; then
+    return 0
+  fi
+
+  # Need to install. Do it in an isolated venv to avoid PEP 668
+  # "externally-managed-environment" errors on Homebrew/system Python.
+  if [ ! -x "$AGENT_DIR/.venv/bin/python" ]; then
+    step "Creating Python virtualenv (show-me-agent/.venv)"
+    python3 -m venv "$AGENT_DIR/.venv" || die "Failed to create virtualenv"
+  fi
+  PYBIN="$AGENT_DIR/.venv/bin/python"
+
+  if [ "$INSTALL" -eq 1 ] || ! agent_deps_ok; then
+    step "Installing agent (Python) dependencies into .venv"
+    "$PYBIN" -m pip install --quiet --upgrade pip
+    "$PYBIN" -m pip install -r "$AGENT_DIR/requirements.txt" || die "pip install failed"
+  fi
+  ok "Agent Python env ready ($PYBIN)"
+}
+
 # ── 0. prerequisites ──────────────────────────────────────────────────────────
 step "Checking prerequisites"
 command -v node >/dev/null  || die "node not found (need Node 18+)"
 command -v npm  >/dev/null  || die "npm not found"
 command -v python3 >/dev/null || die "python3 not found (need 3.10+)"
 PYBIN="python3"
-command -v uvicorn >/dev/null || true
 
 if [ ! -f "$ROOT/.env" ]; then
   warn "No .env at repo root — copying .env.example (set MINIMAX_API_KEY for live LLM matching)"
@@ -96,10 +123,7 @@ if [ "$INSTALL" -eq 1 ] || [ ! -d "$WEB_DIR/node_modules" ]; then
   step "Installing Angular dependencies"
   ( cd "$WEB_DIR" && npm install )
 fi
-if [ "$INSTALL" -eq 1 ]; then
-  step "Installing agent (Python) dependencies"
-  ( cd "$AGENT_DIR" && $PYBIN -m pip install -r requirements.txt )
-fi
+ensure_agent_env   # Python deps (uses current interpreter if it already has them, else a venv)
 
 # ── 2. build & link the SDK ───────────────────────────────────────────────────
 step "Building the SDK"
