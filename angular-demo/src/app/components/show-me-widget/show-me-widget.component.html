@@ -18,18 +18,35 @@
 
     <!-- Input state -->
     <div *ngIf="state === 'expanded'" class="smt-body">
-      <input
-        class="smt-input"
-        [(ngModel)]="queryText"
-        (keydown)="onKeydown($event)"
-        placeholder="描述你想做什么，例如：导出数据"
-        autofocus />
+      <div class="smt-input-row">
+        <input
+          class="smt-input"
+          [(ngModel)]="queryText"
+          (keydown)="onKeydown($event)"
+          placeholder="描述你想做什么，例如：导出数据"
+          autofocus />
+        <button
+          *ngIf="voiceSupported"
+          class="smt-mic"
+          (click)="startVoice()"
+          title="语音输入 (Alt+V)">
+          🎤
+        </button>
+      </div>
       <button
         class="smt-btn-primary"
         (click)="submit()"
         [disabled]="!queryText.trim()">
         查找 ↵
       </button>
+    </div>
+
+    <!-- Listening state -->
+    <div *ngIf="state === 'listening'" class="smt-body smt-center">
+      <div class="smt-mic-pulse">🎤</div>
+      <p class="smt-hint">正在聆听…请说出你想做什么</p>
+      <p class="smt-transcript" *ngIf="queryText">“{{ queryText }}”</p>
+      <button class="smt-btn-ghost" (click)="stopVoice()">停止</button>
     </div>
 
     <!-- Loading state -->

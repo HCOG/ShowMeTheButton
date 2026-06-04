@@ -1,7 +1,7 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { ShowMeSDK, JourneyConfig, JourneyState } from '@show-me/core';
-import { filter, Subscription } from 'rxjs';
+import { filter, Subject, Subscription } from 'rxjs';
 
 export type QueryStatus = 'idle' | 'scanning' | 'querying' | 'success' | 'error';
 
@@ -16,6 +16,9 @@ export class ShowMeService implements OnDestroy {
   private sdk: ShowMeSDK | null = null;
   private routerSub: Subscription;
   private _active = false;
+
+  /** Emits when a global hotkey (Alt+V) requests voice input. The widget subscribes. */
+  readonly voiceHotkey$ = new Subject<void>();
 
   constructor(private router: Router) {
     // Re-scan DOM after every navigation (new page = new elements)
@@ -51,6 +54,48 @@ export class ShowMeService implements OnDestroy {
   deactivate(): void {
     this.sdk?.deactivate();
     this._active = false;
+  }
+
+  /** Toggle the assistant cursor on/off. Returns the new active state. */
+  async toggleCursor(): Promise<boolean> {
+    if (!this.sdk) {
+      await this.init();
+      return this._active;
+    }
+    if (this._active) {
+      this.deactivate();
+    } else {
+      this.activate();
+    }
+    return this._active;
+  }
+
+  /** Whether the browser supports voice input. */
+  get isVoiceSupported(): boolean {
+    return this.sdk ? this.sdk.isVoiceSupported() : ShowMeService.browserVoiceSupported();
+  }
+
+  static browserVoiceSupported(): boolean {
+    return typeof window !== 'undefined' &&
+      !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+  }
+
+  /** Trigger the voice-input hotkey path (used by Alt+V). */
+  requestVoice(): void {
+    this.voiceHotkey$.next();
+  }
+
+  async startVoiceInput(
+    onText: (text: string, isFinal: boolean) => void,
+    onEnd?: () => void,
+    onError?: (error: string) => void,
+  ): Promise<void> {
+    if (!this.sdk) await this.init();
+    this.sdk!.startVoiceInput(onText, onEnd, onError);
+  }
+
+  stopVoiceInput(): void {
+    this.sdk?.stopVoiceInput();
   }
 
   async rescan(): Promise<number> {

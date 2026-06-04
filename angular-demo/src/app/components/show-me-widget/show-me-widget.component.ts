@@ -1,9 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { ShowMeService } from '../../services/show-me.service';
 
-type PanelState = 'collapsed' | 'expanded' | 'loading' | 'result' | 'error';
+type PanelState = 'collapsed' | 'expanded' | 'listening' | 'loading' | 'result' | 'error';
 
 @Component({
   selector: 'app-show-me-widget',
@@ -12,19 +13,36 @@ type PanelState = 'collapsed' | 'expanded' | 'loading' | 'result' | 'error';
   templateUrl: './show-me-widget.component.html',
   styleUrls: ['./show-me-widget.component.scss'],
 })
-export class ShowMeWidgetComponent {
+export class ShowMeWidgetComponent implements OnInit, OnDestroy {
   state: PanelState = 'collapsed';
   queryText = '';
   resultText = '';
   errorText = '';
   confidence = 0;
 
+  private hotkeySub?: Subscription;
+
   constructor(public showMe: ShowMeService) {}
+
+  get voiceSupported(): boolean {
+    return this.showMe.isVoiceSupported;
+  }
+
+  ngOnInit(): void {
+    // Alt+V hotkey (from app shell) → open widget and start listening.
+    this.hotkeySub = this.showMe.voiceHotkey$.subscribe(() => this.startVoice());
+  }
+
+  ngOnDestroy(): void {
+    this.hotkeySub?.unsubscribe();
+    this.showMe.stopVoiceInput();
+  }
 
   toggle(): void {
     if (this.state === 'collapsed') {
       this.state = 'expanded';
     } else {
+      this.showMe.stopVoiceInput();
       this.state = 'collapsed';
       this.queryText = '';
       this.resultText = '';
@@ -32,8 +50,56 @@ export class ShowMeWidgetComponent {
     }
   }
 
+  // --- Voice input -----------------------------------------------------------
+
+  async startVoice(): Promise<void> {
+    if (!this.voiceSupported) {
+      this.errorText = '当前浏览器不支持语音输入，请使用 Chrome';
+      this.state = 'error';
+      return;
+    }
+    // Make sure the panel is open and reset prior result.
+    this.queryText = '';
+    this.resultText = '';
+    this.errorText = '';
+    this.state = 'listening';
+
+    await this.showMe.startVoiceInput(
+      (text, isFinal) => {
+        this.queryText = text;
+        if (isFinal && text.trim()) {
+          // Auto-submit once we have a final transcript.
+          this.submit();
+        }
+      },
+      () => {
+        // Recognition ended without a final result → fall back to manual edit.
+        if (this.state === 'listening') {
+          this.state = 'expanded';
+        }
+      },
+      (err) => {
+        this.state = 'expanded';
+        if (err === 'not-allowed' || err === 'service-not-allowed') {
+          this.errorText = '麦克风权限被拒绝';
+          this.state = 'error';
+        }
+      },
+    );
+  }
+
+  stopVoice(): void {
+    this.showMe.stopVoiceInput();
+    if (this.state === 'listening') {
+      this.state = 'expanded';
+    }
+  }
+
   async submit(): Promise<void> {
     if (!this.queryText.trim()) return;
+
+    // Stop listening if a voice utterance triggered this.
+    this.showMe.stopVoiceInput();
 
     this.state = 'loading';
     this.resultText = '';
