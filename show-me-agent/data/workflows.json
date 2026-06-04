@@ -1,0 +1,187 @@
+[
+  {
+    "id": "export-report",
+    "title": "导出报表为PDF",
+    "description": "将当前数据表格导出为PDF文件",
+    "page": "/button-hell",
+    "estimatedTime": "30秒",
+    "steps": [
+      {
+        "step": 1,
+        "title": "打开「更多操作」菜单",
+        "description": "点击顶部工具栏中的「更多操作」按钮，展开操作菜单。",
+        "query": "更多操作按钮",
+        "hint": "点击这里展开导出、备份等更多功能"
+      },
+      {
+        "step": 2,
+        "title": "选择「导出数据」",
+        "description": "在弹出的下拉菜单中，点击「📤 导出数据」选项。",
+        "query": "导出数据",
+        "hint": "点击此处打开导出格式对话框"
+      },
+      {
+        "step": 3,
+        "title": "选择 PDF 格式",
+        "description": "在导出对话框中，选择「PDF」作为导出格式。",
+        "query": "PDF格式选项",
+        "hint": "选择 PDF 格式"
+      },
+      {
+        "step": 4,
+        "title": "确认导出",
+        "description": "点击「确认导出」按钮，完成导出操作。",
+        "query": "确认导出按钮",
+        "hint": "点击确认，文件即将下载"
+      }
+    ]
+  },
+  {
+    "id": "delete-batch",
+    "title": "批量删除记录",
+    "description": "选中多条记录并批量删除",
+    "page": "/button-hell",
+    "estimatedTime": "20秒",
+    "steps": [
+      {
+        "step": 1,
+        "title": "勾选要删除的记录",
+        "description": "在表格中勾选需要删除的记录前面的复选框，可多选。",
+        "query": "全选复选框",
+        "hint": "勾选记录"
+      },
+      {
+        "step": 2,
+        "title": "点击「删除」按钮",
+        "description": "选好记录后，点击工具栏中的红色「删除」按钮。",
+        "query": "删除按钮",
+        "hint": "点击删除选中的记录"
+      },
+      {
+        "step": 3,
+        "title": "确认删除",
+        "description": "在弹出的确认对话框中，点击「确认删除」完成操作。",
+        "query": "确认删除",
+        "hint": "确认后记录将被永久删除"
+      }
+    ]
+  },
+  {
+    "id": "employee-onboarding",
+    "title": "员工入职信息提交",
+    "description": "填写并提交新员工入职登记表",
+    "page": "/complex-form",
+    "estimatedTime": "5-10分钟",
+    "steps": [
+      {
+        "step": 1,
+        "title": "自动填充示例数据",
+        "description": "点击「自动填充」快速填入示例数据，了解表单结构。",
+        "query": "自动填充按钮",
+        "hint": "点击快速填入示例数据"
+      },
+      {
+        "step": 2,
+        "title": "前往下一步",
+        "description": "完成个人信息后，点击「下一步」进入地址信息。",
+        "query": "下一步按钮",
+        "hint": "点击进入地址信息填写"
+      },
+      {
+        "step": 3,
+        "title": "继续下一步",
+        "description": "填写地址后，再次点击「下一步」进入就业信息。",
+        "query": "下一步按钮",
+        "hint": "点击进入就业信息"
+      },
+      {
+        "step": 4,
+        "title": "保存草稿",
+        "description": "在提交前可以点击「保存草稿」保存进度。",
+        "query": "保存草稿按钮",
+        "hint": "点击保存，随时可以继续填写"
+      },
+      {
+        "step": 5,
+        "title": "提交表单",
+        "description": "确认信息无误后，点击「提交表单」完成入职登记。",
+        "query": "提交表单按钮",
+        "hint": "点击提交完成入职登记"
+      }
+    ]
+  },
+  {
+    "id": "image-edit",
+    "title": "编辑并保存图片",
+    "description": "选择工具，应用滤镜，导出图片",
+    "page": "/image-editor",
+    "estimatedTime": "1-2分钟",
+    "steps": [
+      {
+        "step": 1,
+        "title": "选择滤镜工具",
+        "description": "在左侧工具栏中点击「🎨 滤镜」工具。",
+        "query": "滤镜工具按钮",
+        "hint": "选择滤镜工具"
+      },
+      {
+        "step": 2,
+        "title": "添加文字",
+        "description": "点击「📝 文字」工具，在画布上添加文字说明。",
+        "query": "文字工具按钮",
+        "hint": "点击选择文字工具"
+      },
+      {
+        "step": 3,
+        "title": "撤销操作",
+        "description": "如果需要撤销上一步，点击顶部的「撤销」按钮。",
+        "query": "撤销按钮",
+        "hint": "点击撤销上一步操作"
+      },
+      {
+        "step": 4,
+        "title": "导出图片",
+        "description": "完成编辑后，点击「导出」按钮保存图片。",
+        "query": "导出图片按钮",
+        "hint": "点击导出完成的图片"
+      }
+    ]
+  },
+  {
+    "id": "workflow-design",
+    "title": "创建并发布工作流",
+    "description": "设计审批工作流并发布",
+    "page": "/workflow",
+    "estimatedTime": "5-10分钟",
+    "steps": [
+      {
+        "step": 1,
+        "title": "添加节点",
+        "description": "点击「添加节点」按钮，在画布中添加一个新的流程节点。",
+        "query": "添加节点按钮",
+        "hint": "点击添加新节点"
+      },
+      {
+        "step": 2,
+        "title": "验证工作流",
+        "description": "设计完成后，点击「验证」按钮检查流程是否有误。",
+        "query": "验证工作流按钮",
+        "hint": "点击验证流程合法性"
+      },
+      {
+        "step": 3,
+        "title": "保存工作流",
+        "description": "验证通过后，点击「保存」按钮保存当前工作流。",
+        "query": "保存工作流按钮",
+        "hint": "点击保存工作流"
+      },
+      {
+        "step": 4,
+        "title": "发布工作流",
+        "description": "确认无误后，点击「发布」按钮将工作流发布上线。",
+        "query": "发布工作流按钮",
+        "hint": "点击发布，工作流正式生效"
+      }
+    ]
+  }
+]
