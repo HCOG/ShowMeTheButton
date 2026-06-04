@@ -53,6 +53,7 @@ knowledge-base/chroma/
 # Logs
 *.log
 logs/
+.demo-logs/
 
 # 测试
 htmlcov/
