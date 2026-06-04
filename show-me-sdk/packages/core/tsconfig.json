@@ -11,9 +11,10 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "outDir": "./dist",
+    "outDir": "./dist/types",
     "rootDir": "./src",
     "noEmit": false,
+    "emitDeclarationOnly": true,
     "composite": true
   },
   "include": ["src/**/*"],
