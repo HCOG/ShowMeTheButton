@@ -1,0 +1,63 @@
+<div class="smt-widget" [class]="'state-' + state">
+
+  <!-- Collapsed FAB -->
+  <button
+    *ngIf="state === 'collapsed'"
+    class="smt-fab"
+    (click)="toggle()"
+    title="ShowMeTheButton - 点击查找功能">
+    🎯
+  </button>
+
+  <!-- Expanded panel -->
+  <div *ngIf="state !== 'collapsed'" class="smt-panel">
+    <div class="smt-panel-header">
+      <span class="smt-title">🎯 帮我找到…</span>
+      <button class="smt-close" (click)="toggle()" title="关闭">✕</button>
+    </div>
+
+    <!-- Input state -->
+    <div *ngIf="state === 'expanded'" class="smt-body">
+      <input
+        class="smt-input"
+        [(ngModel)]="queryText"
+        (keydown)="onKeydown($event)"
+        placeholder="描述你想做什么，例如：导出数据"
+        autofocus />
+      <button
+        class="smt-btn-primary"
+        (click)="submit()"
+        [disabled]="!queryText.trim()">
+        查找 ↵
+      </button>
+    </div>
+
+    <!-- Loading state -->
+    <div *ngIf="state === 'loading'" class="smt-body smt-center">
+      <div class="smt-spinner"></div>
+      <p class="smt-hint">正在定位中…</p>
+    </div>
+
+    <!-- Result state -->
+    <div *ngIf="state === 'result'" class="smt-body">
+      <div class="smt-result">
+        <div class="smt-result-icon">✅</div>
+        <p class="smt-reasoning">{{ resultText }}</p>
+        <div class="smt-confidence">
+          匹配度：{{ (confidence * 100).toFixed(0) }}%
+        </div>
+      </div>
+      <button class="smt-btn-ghost" (click)="newQuery()">再问一个</button>
+    </div>
+
+    <!-- Error state -->
+    <div *ngIf="state === 'error'" class="smt-body">
+      <div class="smt-error">
+        <div class="smt-result-icon">❌</div>
+        <p class="smt-reasoning">{{ errorText }}</p>
+      </div>
+      <button class="smt-btn-ghost" (click)="retry()">重试</button>
+    </div>
+  </div>
+
+</div>

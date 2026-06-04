@@ -1,0 +1,198 @@
+// ShowMeTheButton floating widget styles
+
+$primary: #667eea;
+$primary-dark: #5a67d8;
+$radius: 12px;
+$shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+
+.smt-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+// --- FAB button ---
+.smt-fab {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: $primary;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: $shadow;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: scale(1.08);
+    box-shadow: 0 10px 36px rgba(102, 126, 234, 0.5);
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+// --- Panel ---
+.smt-panel {
+  width: 320px;
+  background: #fff;
+  border-radius: $radius;
+  box-shadow: $shadow;
+  overflow: hidden;
+  animation: smt-slide-up 0.2s ease;
+}
+
+@keyframes smt-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.smt-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  background: $primary;
+  color: white;
+}
+
+.smt-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.smt-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
+}
+
+// --- Body ---
+.smt-body {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &.smt-center {
+    align-items: center;
+    padding: 24px 16px;
+  }
+}
+
+.smt-input {
+  width: 100%;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+
+  &:focus {
+    border-color: $primary;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  }
+
+  &::placeholder {
+    color: #a0aec0;
+  }
+}
+
+.smt-btn-primary {
+  padding: 10px;
+  background: $primary;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) {
+    background: $primary-dark;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.smt-btn-ghost {
+  padding: 8px;
+  background: transparent;
+  color: $primary;
+  border: 1.5px solid $primary;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(102, 126, 234, 0.08);
+  }
+}
+
+// --- Spinner ---
+.smt-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: $primary;
+  border-radius: 50%;
+  animation: smt-spin 0.7s linear infinite;
+}
+
+@keyframes smt-spin {
+  to { transform: rotate(360deg); }
+}
+
+.smt-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #718096;
+}
+
+// --- Result ---
+.smt-result, .smt-error {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.smt-result-icon {
+  font-size: 20px;
+}
+
+.smt-reasoning {
+  margin: 0;
+  font-size: 13px;
+  color: #2d3748;
+  line-height: 1.5;
+}
+
+.smt-confidence {
+  font-size: 12px;
+  color: #718096;
+  font-weight: 500;
+}

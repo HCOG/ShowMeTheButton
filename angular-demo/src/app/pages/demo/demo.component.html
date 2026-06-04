@@ -1,112 +1,159 @@
 <div class="demo-container">
   <div class="demo-header">
-    <h1>🎯 ShowMe SDK 功能演示</h1>
-    <p class="subtitle">测试光标跟随和导航功能</p>
+    <h1>🎯 ShowMeTheButton SDK 演示</h1>
+    <p class="subtitle">用自然语言找到页面上的任何按钮</p>
   </div>
-  
+
   <div class="demo-content">
+    <!-- Left: Control panel -->
     <div class="control-panel">
       <h2>控制面板</h2>
-      
+
+      <!-- Status -->
       <div class="status-section">
-        <h3>📊 当前状态</h3>
+        <h3>📊 状态</h3>
         <div class="status-item">
-          <span class="label">SDK状态:</span>
+          <span class="label">SDK:</span>
           <span class="value" [class.success]="isInitialized" [class.error]="!isInitialized">
-            {{ isInitialized ? '✅ 已加载' : '❌ 未加载' }}
+            {{ isInitialized ? '✅ 已初始化' : '⚫ 未初始化' }}
           </span>
         </div>
         <div class="status-item">
-          <span class="label">光标状态:</span>
+          <span class="label">光标:</span>
           <span class="value" [class.success]="isActive" [class.warning]="!isActive">
-            {{ isActive ? '🟢 激活' : '⚪ 未激活' }}
+            {{ isActive ? '🟢 激活中' : '⚪ 未激活' }}
           </span>
         </div>
-        <div class="status-message">
-          {{ statusMessage }}
+        <div *ngIf="scannedCount > 0" class="status-item">
+          <span class="label">元素数:</span>
+          <span class="value success">{{ scannedCount }} 个</span>
         </div>
+        <div class="status-message">{{ statusMessage }}</div>
       </div>
-      
+
+      <!-- Actions -->
       <div class="action-section">
         <h3>🎮 操作</h3>
-        
+
+        <button
+          class="btn btn-primary full-width"
+          id="btn-init-sdk"
+          [disabled]="isInitialized"
+          (click)="initSDK()">
+          🚀 初始化 SDK
+        </button>
+
         <div class="button-group">
-          <button 
-            class="btn btn-primary"
+          <button
+            class="btn btn-secondary"
             id="btn-activate"
             [disabled]="!isInitialized || isActive"
             (click)="activateCursor()">
             ✅ 激活光标
           </button>
-          
-          <button 
-            class="btn btn-secondary"
+          <button
+            class="btn btn-outline"
             id="btn-deactivate"
             [disabled]="!isActive"
             (click)="deactivateCursor()">
-            ⏸️ 停用光标
+            ⏸️ 停用
           </button>
         </div>
-        
-        <div class="button-group">
-          <button 
-            class="btn btn-outline"
-            id="btn-scan"
-            [disabled]="!isInitialized"
-            (click)="testScan()">
-            🔍 扫描页面元素
-          </button>
-          
-          <button 
-            class="btn btn-outline"
-            id="btn-fly"
-            [disabled]="!isActive"
-            (click)="testFlyTo()">
-            ✈️ 测试飞向按钮
-          </button>
-        </div>
+
+        <button
+          class="btn btn-outline full-width"
+          id="btn-scan"
+          [disabled]="!isInitialized"
+          (click)="scanPage()">
+          🔍 重新扫描页面元素
+        </button>
       </div>
-      
-      <div class="instruction-section">
-        <h3>📖 使用说明</h3>
-        <ol>
-          <li>点击"激活光标"，会看到一个小光标跟随你的鼠标</li>
-          <li>点击"扫描页面元素"，会在控制台看到扫描结果</li>
-          <li>点击"测试飞向按钮"，光标会飞到"导出"按钮</li>
-          <li>在按钮地狱页面，你可以看到完整的光标导航演示</li>
-        </ol>
+
+      <!-- Query -->
+      <div class="query-section">
+        <h3>💬 自然语言查询</h3>
+        <p class="hint">输入你想做的事情，SDK 会找到对应按钮并飞过去</p>
+        <input
+          class="query-input"
+          [(ngModel)]="queryText"
+          (keydown)="onKeydown($event)"
+          [disabled]="!isInitialized || isQuerying"
+          placeholder="例如：我想导出数据" />
+        <button
+          class="btn btn-primary full-width"
+          [disabled]="!isInitialized || !queryText.trim() || isQuerying"
+          (click)="submitQuery()">
+          {{ isQuerying ? '查询中…' : '🎯 查找并导航' }}
+        </button>
+
+        <div *ngIf="lastResult" class="result-card">
+          <div class="result-header">✅ 已找到目标</div>
+          <div class="result-id">元素 ID: <code>{{ lastResult.targetId }}</code></div>
+          <div class="result-reasoning">{{ lastResult.reasoning }}</div>
+          <div class="result-confidence">
+            匹配度: {{ (lastResult.confidence * 100).toFixed(0) }}%
+          </div>
+        </div>
       </div>
     </div>
-    
+
+    <!-- Right: Info -->
     <div class="info-panel">
-      <h2>💡 功能说明</h2>
-      
-      <div class="feature-card">
-        <h3>🐭 光标跟随</h3>
-        <p>光标会跟随你的鼠标，但有一个小偏移（15px），不会完全遮挡鼠标位置。</p>
+      <h2>💡 使用说明</h2>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <strong>启动后端服务</strong>
+            <p>运行 <code>show-me-agent</code>（port 8001）</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <strong>初始化 SDK</strong>
+            <p>点击左侧"初始化 SDK"按钮</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <strong>前往任意页面</strong>
+            <p>点击导航栏进入"按钮地狱"等复杂页面</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <strong>使用悬浮按钮查询</strong>
+            <p>点击右下角 🎯 按钮，输入你想做什么</p>
+          </div>
+        </div>
       </div>
-      
-      <div class="feature-card">
-        <h3>✈️ 飞向导航</h3>
-        <p>当用户询问问题时，光标会从当前位置平滑地飞向目标按钮。</p>
-      </div>
-      
-      <div class="feature-card">
-        <h3>💬 悬停提示</h3>
-        <p>光标飞到目标后，会显示Tooltip说明这是什么按钮。</p>
-      </div>
-      
-      <div class="feature-card">
-        <h3>🎨 Shadow DOM</h3>
-        <p>光标使用Shadow DOM实现，完全不影响原应用的样式和布局。</p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🖱️</div>
+          <h4>光标跟随</h4>
+          <p>光标跟随鼠标，SDK 激活时可见</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">✈️</div>
+          <h4>飞向目标</h4>
+          <p>光标平滑飞向匹配到的 UI 元素</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💬</div>
+          <h4>悬停提示</h4>
+          <p>到达目标后显示功能说明 tooltip</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <h4>LLM 匹配</h4>
+          <p>大模型理解意图，准确定位元素</p>
+        </div>
       </div>
     </div>
-  </div>
-  
-  <div class="demo-footer">
-    <p>提示：建议先进入"按钮地狱"页面测试完整的光标导航功能</p>
-    <button class="btn btn-link" routerLink="/button-hell">
-      前往按钮地狱 →
-    </button>
   </div>
 </div>

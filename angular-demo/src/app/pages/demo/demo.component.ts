@@ -1,102 +1,88 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-
-declare const ShowMeSDK: any;
+import { FormsModule } from '@angular/forms';
+import { ShowMeService } from '../../services/show-me.service';
 
 @Component({
   selector: 'app-demo',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './demo.component.html',
-  styleUrls: ['./demo.component.scss']
+  styleUrls: ['./demo.component.scss'],
 })
 export class DemoComponent implements OnInit, OnDestroy {
-  sdk: any = null;
   isInitialized = false;
   isActive = false;
   queryText = '';
-  queryResult: any = null;
-  statusMessage = '';
-  
-  ngOnInit(): void {
-    this.loadSDK();
-  }
-  
-  ngOnDestroy(): void {
-    if (this.sdk) {
-      this.sdk.deactivate();
-    }
-  }
-  
-  async loadSDK(): Promise<void> {
-    this.statusMessage = '加载SDK中...';
-    
+  statusMessage = '点击"初始化 SDK"开始';
+  lastResult: { targetId: string; confidence: number; reasoning: string } | null = null;
+  scannedCount = 0;
+  isQuerying = false;
+
+  constructor(public showMe: ShowMeService) {}
+
+  ngOnInit(): void {}
+
+  ngOnDestroy(): void {}
+
+  async initSDK(): Promise<void> {
+    this.statusMessage = '正在初始化 SDK…';
     try {
-      // 如果SDK未加载，则动态加载
-      if (typeof (window as any).ShowMeCore === 'undefined') {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'http://localhost:5173/show-me-core.umd.js';
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error('SDK文件加载失败'));
-          document.head.appendChild(script);
-        });
-      }
-      
-      this.sdk = new (window as any).ShowMeCore.ShowMeSDK({
-        agentEndpoint: 'http://localhost:8001'
-      });
-      
-      await this.sdk.init();
+      await this.showMe.init();
       this.isInitialized = true;
-      this.statusMessage = 'SDK加载成功！点击"激活光标"开始使用';
-      
-    } catch (error) {
-      this.statusMessage = 'SDK加载失败: ' + error;
-      console.error('SDK加载失败:', error);
+      this.isActive = true;
+      this.statusMessage = 'SDK 初始化成功！光标已激活，试试下方的查询框';
+    } catch (err: any) {
+      this.statusMessage = '初始化失败: ' + err.message;
     }
   }
-  
+
   activateCursor(): void {
-    if (!this.sdk) return;
-    
-    this.sdk.activate();
+    this.showMe.activate();
     this.isActive = true;
-    this.statusMessage = '光标已激活！现在有一个小光标会跟随你的鼠标';
+    this.statusMessage = '光标已激活，移动鼠标可以看到跟随光标';
   }
-  
+
   deactivateCursor(): void {
-    if (!this.sdk) return;
-    
-    this.sdk.deactivate();
+    this.showMe.deactivate();
     this.isActive = false;
     this.statusMessage = '光标已停用';
   }
-  
-  async testFlyTo(): Promise<void> {
-    if (!this.sdk) return;
-    
-    this.statusMessage = '测试飞向"导出"按钮...';
-    
-    // 模拟查询
-    const btn = document.querySelector('#btn-export') as HTMLElement;
-    if (btn) {
-      await this.sdk.cursorEngine.flyTo(btn);
-      await this.sdk.cursorEngine.hover(btn, '这就是导出按钮！点击可以导出数据');
-      this.statusMessage = '测试完成！';
-    } else {
-      this.statusMessage = '未找到导出按钮，请先进入按钮地狱页面';
+
+  async scanPage(): Promise<void> {
+    if (!this.isInitialized) {
+      this.statusMessage = '请先初始化 SDK';
+      return;
+    }
+    this.statusMessage = '扫描中…';
+    const count = await this.showMe.rescan();
+    this.scannedCount = count;
+    this.statusMessage = `扫描完成！发现 ${count} 个可交互元素`;
+  }
+
+  async submitQuery(): Promise<void> {
+    if (!this.queryText.trim() || this.isQuerying) return;
+    if (!this.isInitialized) {
+      this.statusMessage = '请先初始化 SDK';
+      return;
+    }
+
+    this.isQuerying = true;
+    this.lastResult = null;
+    this.statusMessage = '正在查询 Agent…';
+
+    try {
+      const result = await this.showMe.query(this.queryText);
+      this.lastResult = result;
+      this.statusMessage = '✅ 找到目标，光标正在飞过去！';
+    } catch (err: any) {
+      this.statusMessage = '❌ 查询失败: ' + err.message;
+    } finally {
+      this.isQuerying = false;
     }
   }
-  
-  async testScan(): Promise<void> {
-    if (!this.sdk) return;
-    
-    this.statusMessage = '扫描页面元素...';
-    
-    const elements = this.sdk.domScanner.getElements();
-    this.statusMessage = `扫描完成！发现 ${elements.length} 个可交互元素`;
-    
-    console.log('扫描到的元素:', elements);
+
+  onKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') this.submitQuery();
   }
 }
