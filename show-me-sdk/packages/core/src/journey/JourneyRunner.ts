@@ -169,7 +169,7 @@ export class JourneyRunner {
           await this.cursorEngine.hover(
             target.element,
             step.hint ?? reasoning ?? step.description,
-            3000,
+            4500,
           );
         }
       }

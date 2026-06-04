@@ -152,7 +152,7 @@ export class CursorEngine {
     });
   }
 
-  hover(element: HTMLElement, message: string, duration = 2000): Promise<void> {
+  hover(element: HTMLElement, message: string, duration = 4000): Promise<void> {
     return new Promise(resolve => {
       this.showTooltip(message);
       
