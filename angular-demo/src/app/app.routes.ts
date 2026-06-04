@@ -35,5 +35,10 @@ export const routes: Routes = [
     path: 'workflow',
     loadComponent: () => import('./pages/workflow/workflow.component')
       .then(m => m.WorkflowComponent)
+  },
+  {
+    path: 'wiki',
+    loadComponent: () => import('./pages/wiki/wiki.component')
+      .then(m => m.WikiComponent)
   }
 ];

@@ -1,0 +1,179 @@
+<div class="wiki-layout">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="logo">📚 用户手册</span>
+    </div>
+
+    <!-- Search -->
+    <div class="search-wrap">
+      <input class="search-input" [(ngModel)]="searchQuery" placeholder="搜索文档…" />
+    </div>
+
+    <!-- Tab switcher -->
+    <div class="sidebar-tabs">
+      <button [class.active]="sidebarTab === 'docs'" (click)="sidebarTab = 'docs'">按钮说明</button>
+      <button [class.active]="sidebarTab === 'workflows'" (click)="sidebarTab = 'workflows'">工作流教程</button>
+    </div>
+
+    <!-- Docs tree -->
+    <nav class="sidebar-nav" *ngIf="sidebarTab === 'docs'">
+      <div *ngIf="!searchQuery">
+        <div *ngFor="let key of categoryKeys" class="nav-group">
+          <div class="nav-group-label">
+            {{ categories[key].icon }} {{ categories[key].label }}
+          </div>
+          <a *ngFor="let doc of categories[key].docs"
+             class="nav-item"
+             [class.active]="currentDoc?.path === doc.path"
+             (click)="selectDoc(doc.path)">
+            {{ doc.title }}
+          </a>
+        </div>
+      </div>
+
+      <!-- Search results -->
+      <div *ngIf="searchQuery">
+        <div class="search-results-label">搜索结果 ({{ filteredDocs.length }})</div>
+        <a *ngFor="let doc of filteredDocs"
+           class="nav-item search-result"
+           [class.active]="currentDoc?.path === doc.path"
+           (click)="selectDoc(doc.path)">
+          <span class="result-cat">{{ doc.icon }} {{ doc.category }}</span>
+          <span class="result-title">{{ doc.title }}</span>
+        </a>
+        <div class="search-results-label" *ngIf="filteredWorkflows.length">工作流</div>
+        <a *ngFor="let wf of filteredWorkflows"
+           class="nav-item search-result"
+           [class.active]="currentWorkflow?.id === wf.id"
+           (click)="selectWorkflow(wf.id)">
+          <span class="result-cat">🔀 工作流教程</span>
+          <span class="result-title">{{ wf.title }}</span>
+        </a>
+      </div>
+    </nav>
+
+    <!-- Workflows list -->
+    <nav class="sidebar-nav" *ngIf="sidebarTab === 'workflows'">
+      <div class="nav-group-label">🔀 工作流教程</div>
+      <a *ngFor="let wf of filteredWorkflows"
+         class="nav-item nav-workflow"
+         [class.active]="currentWorkflow?.id === wf.id"
+         (click)="selectWorkflow(wf.id)">
+        <span class="wf-title">{{ wf.title }}</span>
+        <span class="wf-meta">{{ wf.stepCount }}步 · {{ wf.estimatedTime }}</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ── Main content ─────────────────────────────────────────────────────── -->
+  <main class="content">
+
+    <!-- Loading -->
+    <div *ngIf="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>加载中…</p>
+    </div>
+
+    <!-- Welcome / empty state -->
+    <div *ngIf="!loading && !currentDoc && !currentWorkflow" class="welcome">
+      <div class="welcome-icon">📚</div>
+      <h1>ShowMeTheButton 用户手册</h1>
+      <p>从左侧选择一个文档，或浏览工作流教程</p>
+      <div class="welcome-grid">
+        <div class="welcome-card" *ngFor="let key of categoryKeys.slice(0,4)"
+             (click)="selectFirstDoc(key)">
+          <div class="card-icon">{{ categories[key].icon }}</div>
+          <div class="card-label">{{ categories[key].label }}</div>
+          <div class="card-count">{{ categories[key].docs.length }} 篇文档</div>
+        </div>
+      </div>
+      <div class="welcome-wf-label">热门教程</div>
+      <div class="welcome-grid">
+        <div class="welcome-card workflow-card" *ngFor="let wf of workflows.slice(0,4)"
+             (click)="selectWorkflow(wf.id)">
+          <div class="card-icon">🔀</div>
+          <div class="card-label">{{ wf.title }}</div>
+          <div class="card-count">{{ wf.stepCount }}步 · {{ wf.estimatedTime }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Doc article view -->
+    <article *ngIf="!loading && currentDoc" class="article">
+      <div class="article-breadcrumb">
+        {{ currentDoc.categoryLabel }} / {{ currentDoc.title }}
+      </div>
+      <div class="article-body" [innerHTML]="renderedHtml"></div>
+
+      <!-- Related page CTA -->
+      <div class="article-footer" *ngIf="currentDoc.page">
+        <a [href]="currentDoc.page" class="btn-go-page">
+          前往 {{ currentDoc.categoryLabel }} 页面 →
+        </a>
+      </div>
+    </article>
+
+    <!-- Workflow view -->
+    <section *ngIf="!loading && currentWorkflow" class="workflow-view">
+
+      <div class="wf-header">
+        <div class="wf-badge">🔀 工作流教程</div>
+        <h1 class="wf-title">{{ currentWorkflow.title }}</h1>
+        <p class="wf-desc">{{ currentWorkflow.description }}</p>
+
+        <div class="wf-meta-row">
+          <span class="wf-chip">📍 {{ currentWorkflow.page }}</span>
+          <span class="wf-chip">⏱ {{ currentWorkflow.estimatedTime }}</span>
+          <span class="wf-chip">{{ currentWorkflow.stepCount }} 步</span>
+        </div>
+
+        <!-- Start journey CTA -->
+        <button class="btn-start-tour"
+                [disabled]="journeyRunning"
+                (click)="startGuidedTour(currentWorkflow)">
+          <span *ngIf="!journeyRunning">▶ 启动导航教程</span>
+          <span *ngIf="journeyRunning">
+            正在进行第 {{ journeyStep }} / {{ journeyTotal }} 步…
+          </span>
+        </button>
+        <button *ngIf="journeyRunning" class="btn-cancel-tour" (click)="cancelJourney()">
+          ✕ 取消
+        </button>
+        <div *ngIf="journeyStatus" class="journey-status">{{ journeyStatus }}</div>
+      </div>
+
+      <!-- Visual step timeline -->
+      <div class="step-timeline">
+        <div *ngFor="let step of currentWorkflow.steps; trackBy: trackByStep"
+             class="step-card"
+             [class.active]="journeyRunning && journeyStep === step.step"
+             [class.done]="journeyRunning && journeyStep > step.step">
+
+          <div class="step-connector" *ngIf="step.step > 1"></div>
+
+          <div class="step-number">{{ step.step }}</div>
+          <div class="step-body">
+            <div class="step-title">{{ step.title }}</div>
+            <div class="step-desc">{{ step.description }}</div>
+            <div *ngIf="step.hint" class="step-hint">
+              💡 {{ step.hint }}
+            </div>
+            <div class="step-query-chip">
+              🔍 查询: <code>{{ step.query }}</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Embedded markdown doc if available -->
+      <div *ngIf="currentWorkflow.markdownContent" class="wf-markdown">
+        <h3>完整教程文档</h3>
+        <div class="article-body" [innerHTML]="renderMd(currentWorkflow.markdownContent)"></div>
+      </div>
+
+    </section>
+  </main>
+
+</div>

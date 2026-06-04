@@ -18,6 +18,7 @@ export class NavbarComponent {
     { path: '/complex-form', label: '复杂表单', icon: '📝' },
     { path: '/image-editor', label: '图片编辑', icon: '🎨' },
     { path: '/dashboard', label: '数据仪表盘', icon: '📊' },
-    { path: '/workflow', label: '工作流', icon: '🔀' }
+    { path: '/workflow', label: '工作流', icon: '🔀' },
+    { path: '/wiki', label: '用户手册', icon: '📚' }
   ];
 }
