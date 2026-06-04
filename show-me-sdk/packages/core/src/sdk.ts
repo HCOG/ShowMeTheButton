@@ -3,6 +3,7 @@ import { DOMScanner } from './scanner/DOMScanner';
 import { CursorEngine } from './cursor/CursorEngine';
 import { AgentClient } from './client/AgentClient';
 import { JourneyRunner, JourneyConfig, JourneyState } from './journey/JourneyRunner';
+import { SpeechInput } from './voice/SpeechInput';
 import { ShowMeConfig } from './types';
 
 export class ShowMeSDK {
@@ -12,6 +13,7 @@ export class ShowMeSDK {
   public cursorEngine: CursorEngine;
   private agentClient: AgentClient;
   public journey: JourneyRunner;
+  public speech: SpeechInput;
   private initialized = false;
   private active = false;
 
@@ -27,6 +29,7 @@ export class ShowMeSDK {
       this.agentClient,
       this.eventBus,
     );
+    this.speech = new SpeechInput(this.eventBus);
   }
 
   async init(): Promise<void> {
@@ -83,5 +86,34 @@ export class ShowMeSDK {
 
   cancelJourney(): void {
     this.journey.cancel();
+  }
+
+  /** Whether voice input is available in this browser. */
+  isVoiceSupported(): boolean {
+    return this.speech.isSupported();
+  }
+
+  /**
+   * Start listening for a spoken question. `onText` fires with interim and final
+   * transcripts (isFinal flag); `onEnd` fires when recognition stops.
+   * Language defaults to the SDK config language (zh-CN).
+   */
+  startVoiceInput(
+    onText: (text: string, isFinal: boolean) => void,
+    onEnd?: () => void,
+    onError?: (error: string) => void,
+  ): void {
+    this.speech.onResult(onText);
+    if (onEnd) this.speech.onEnd(onEnd);
+    if (onError) this.speech.onError(onError);
+    this.speech.start(this.config.language ?? 'zh-CN');
+  }
+
+  stopVoiceInput(): void {
+    this.speech.stop();
+  }
+
+  get isActive(): boolean {
+    return this.active;
   }
 }
