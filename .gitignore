@@ -28,6 +28,9 @@ tmp/
 out-tsc/
 bazel-out
 
+# TypeScript build artifacts
+*.tsbuildinfo
+
 # IDE
 .vscode/
 .idea/
@@ -39,8 +42,13 @@ bazel-out
 # Docker
 dockerdata/
 
-# ChromaDB
+# ChromaDB vector store (regenerable via scripts/ingest.py)
 knowledge-base/chroma/
+**/knowledge-base/chroma/
+
+# Python virtualenvs (nested)
+**/.venv/
+**/venv/
 
 # Logs
 *.log
