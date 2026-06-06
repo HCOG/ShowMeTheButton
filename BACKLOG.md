@@ -3,17 +3,19 @@
 Gaps and improvements identified during development.
 Updated as items are resolved or new ones are found.
 
+**Resolved so far:** B1–B5 (all bugs), C1–C2 (housekeeping). See commit history.
+
 ---
 
 ## 🔴 Bugs / Functional Gaps
 
-### B1 — No cancellation guard in `sdk.guide()`
+### ✅ B1 — No cancellation guard in `sdk.guide()`  *(RESOLVED)*
 **File:** `show-me-sdk/packages/core/src/sdk.ts` → `guide()`  
 If the user submits a second query while a journey is already running, a new
 `journey.start()` fires without cancelling the first. Two pill HUDs appear simultaneously.  
 **Fix:** call `this.journey.cancel()` before starting a new journey inside `guide()`.
 
-### B2 — `mode: 'cors'` placed inside headers object
+### ✅ B2 — `mode: 'cors'` placed inside headers object  *(RESOLVED)*
 **File:** `show-me-sdk/packages/core/src/client/AgentClient.ts`  
 `mode` is a top-level fetch option, not a header. Currently it silently does nothing.
 ```typescript
@@ -24,20 +26,20 @@ headers: { 'Content-Type': 'application/json' },
 mode: 'cors',
 ```
 
-### B3 — Journey error state is silent
+### ✅ B3 — Journey error state is silent  *(RESOLVED — pill now shows an error message via `_fail()` before auto-dismissing)*
 **File:** `show-me-sdk/packages/core/src/journey/JourneyRunner.ts` → `startSmart()`  
 If the backend returns no steps, the pill unmounts and `status = 'error'` is set
 internally, but nothing is shown to the user — the widget just closes with no feedback.  
 **Fix:** emit a visible toast or re-open the widget with an error message.
 
-### B4 — Auto-progression misses non-click interactions
+### ✅ B4 — Auto-progression misses non-click interactions  *(RESOLVED — added `input`/`change` listeners on the target + a conservative `MutationObserver`)*
 **File:** `show-me-sdk/packages/core/src/journey/JourneyRunner.ts` → `ProgressionDetector`  
 Only watches for `click` events and URL changes. Steps requiring typing, dragging,
 or date-picking always fall back to the manual "Done" button.  
 **Fix:** add a `MutationObserver` on `document.body` to detect significant subtree
 changes (new overlay, element count shift) as an additional progression trigger.
 
-### B5 — `ProgressionDetector` doesn't handle touch events
+### ✅ B5 — `ProgressionDetector` doesn't handle touch events  *(RESOLVED — `touchend` now mirrors the `click` listener)*
 **File:** `show-me-sdk/packages/core/src/journey/JourneyRunner.ts`  
 `click` listener works on mobile but `touchend` may fire first and the click may
 be swallowed, causing the detector to miss the action on some mobile browsers.  
@@ -101,14 +103,14 @@ navigation, the DOM is scanned twice in quick succession.
 
 ## 🔵 Code Quality / Housekeeping
 
-### C1 — Dead code in demo component
+### ✅ C1 — Dead code in demo component  *(RESOLVED — removed unused fields, methods, and the orphaned SCSS)*
 **File:** `angular-demo/src/app/pages/demo/demo.component.ts`  
 Fields `smartGoal`, `isJourneyRunning`, `journeyStep`, `journeyTotal`, `journeyStatusMsg`
 and methods `startSmartJourney()`, `cancelJourney()`, `onSmartGoalKeydown()` were
 added for the smart journey UI section that was subsequently removed.  
 **Fix:** delete the dead fields and methods.
 
-### C2 — `startSmartJourney()` still exposed on service and SDK
+### ✅ C2 — `startSmartJourney()` still exposed on service and SDK  *(RESOLVED — removed the unused Angular service passthrough; kept + documented the SDK method as a power-user API)*
 **File:** `show-me.service.ts`, `sdk.ts`  
 The method still exists as a public API even though the widget now uses the unified
 `guide()`. Either document it as an explicit power-user API or remove it to reduce
@@ -142,17 +144,17 @@ add an optional `onStep` callback to `JourneyRunner` for the host app to log.
 
 ---
 
-## Priority Order
+## Priority Order (remaining)
 
 | # | Item | Effort | Impact |
 |---|------|--------|--------|
-| 1 | **B1** — cancellation guard in `guide()` | tiny | high (real crash risk) |
-| 2 | **C1** — dead code cleanup | small | medium (keeps codebase honest) |
-| 3 | **B2** — `mode:'cors'` header fix | tiny | low (silent, not breaking today) |
-| 4 | **U1** — close widget only after pill appears | small | high (obvious UX gap) |
-| 5 | **A1** — iterative journey re-planning | large | very high (unlocks multi-page flows) |
-| 6 | **B4** — MutationObserver progression trigger | medium | high (removes need for Done button) |
-| 7 | **U2** — step hint popover near target ring | medium | high (context where user looks) |
-| 8 | **U3** — low-confidence confirmation | small | medium |
-| 9 | **P2** — keyboard navigation for pill | small | medium |
-| 10 | **A2** — wiki dynamic journeys | medium | medium |
+| 1 | **U1** — close widget only after pill appears | small | high (obvious UX gap) |
+| 2 | **A1** — iterative journey re-planning | large | very high (unlocks multi-page flows) |
+| 3 | **U2** — step hint popover near target ring | medium | high (context where user looks) |
+| 4 | **U3** — low-confidence confirmation | small | medium |
+| 5 | **P2** — keyboard navigation for pill | small | medium |
+| 6 | **A2** — wiki dynamic journeys | medium | medium |
+| 7 | **A3** — debounce double DOM scan | small | low |
+| 8 | **P1 / P3 / P4** — accessibility, mobile keyboard, journey history | mixed | mixed |
+
+_Done: B1–B5, C1–C2._
