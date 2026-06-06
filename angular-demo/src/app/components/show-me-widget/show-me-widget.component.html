@@ -55,6 +55,20 @@
       <p class="smt-hint">🤖 Agent 正在分析…</p>
     </div>
 
+    <!-- Confirm state (low-confidence match) -->
+    <div *ngIf="state === 'confirm'" class="smt-body">
+      <div class="smt-confirm">
+        <div class="smt-result-icon">🤔</div>
+        <p class="smt-reasoning">{{ resultText }}</p>
+        <p class="smt-confirm-q">不太确定，你要找的是这个吗？</p>
+        <div class="smt-confidence">匹配度：{{ (confidence * 100).toFixed(0) }}%</div>
+      </div>
+      <div class="smt-confirm-actions">
+        <button class="smt-btn-primary" (click)="confirmTarget()">是的，带我去 →</button>
+        <button class="smt-btn-ghost" (click)="rejectTarget()">不是，重新问</button>
+      </div>
+    </div>
+
     <!-- Result state -->
     <div *ngIf="state === 'result'" class="smt-body">
       <div class="smt-result">

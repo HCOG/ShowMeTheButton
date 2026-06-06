@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { ShowMeService } from '../../services/show-me.service';
 
-type PanelState = 'collapsed' | 'expanded' | 'listening' | 'loading' | 'result' | 'error';
+type PanelState = 'collapsed' | 'expanded' | 'listening' | 'loading' | 'result' | 'error' | 'confirm';
 
 @Component({
   selector: 'app-show-me-widget',
@@ -19,6 +19,8 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
   resultText = '';
   errorText = '';
   confidence = 0;
+  /** Pending low-confidence match awaiting user confirmation. */
+  private pendingTargetId: string | null = null;
 
   private hotkeySub?: Subscription;
 
@@ -117,6 +119,12 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
         // The pill HUD has taken over — close the widget so it doesn't overlap.
         this.state = 'collapsed';
         this.queryText = '';
+      } else if (result.needsConfirmation && result.targetId) {
+        // Low-confidence match: ask the user before moving the cursor (U3).
+        this.resultText = result.reasoning ?? '';
+        this.confidence = result.confidence ?? 0;
+        this.pendingTargetId = result.targetId;
+        this.state = 'confirm';
       } else {
         this.resultText = result.reasoning ?? '';
         this.confidence = result.confidence ?? 0;
@@ -126,6 +134,23 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
       this.errorText = err.message || '查询失败，请检查Agent服务是否运行';
       this.state = 'error';
     }
+  }
+
+  /** User confirmed the low-confidence match → fly to it. */
+  async confirmTarget(): Promise<void> {
+    if (!this.pendingTargetId) return;
+    const id = this.pendingTargetId;
+    this.pendingTargetId = null;
+    await this.showMe.flyToElement(id, this.resultText);
+    this.state = 'result';
+  }
+
+  /** User rejected the low-confidence match → go back to ask again. */
+  rejectTarget(): void {
+    this.pendingTargetId = null;
+    this.state = 'expanded';
+    this.queryText = '';
+    this.resultText = '';
   }
 
   retry(): void {
