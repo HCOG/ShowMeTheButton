@@ -145,6 +145,12 @@ AGENT_PID=$!
 wait_for_http "http://localhost:$AGENT_PORT/api/health" "Agent" 40
 
 # ── 5. start the Angular app ──────────────────────────────────────────────────
+# Clear Vite's dep-optimisation cache so it always re-bundles the freshly-built
+# SDK instead of serving a stale pre-bundled copy from a previous run.
+step "Clearing Angular/Vite build cache"
+rm -rf "$WEB_DIR/.angular/cache"
+ok "Cache cleared"
+
 step "Starting web app → http://localhost:$WEB_PORT  (first build takes ~20s)"
 ( cd "$WEB_DIR" && npx ng serve --port "$WEB_PORT" >"$LOG_DIR/web.log" 2>&1 ) &
 WEB_PID=$!
