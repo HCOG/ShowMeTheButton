@@ -66,13 +66,15 @@ export class AppComponent {
   onKeydown(event: KeyboardEvent): void {
     if (!event.altKey || event.ctrlKey || event.metaKey) return;
 
-    const key = event.key.toLowerCase();
-    if (key === 's') {
+    // Use event.code (layout-independent) because on Mac, Option+S → 'ß' and
+    // Option+V → '√', so event.key is never 's'/'v'.
+    const code = event.code;
+    if (code === 'KeyS') {
       event.preventDefault();
       this.showMe.toggleCursor().then((active) => {
         this.showToast(active ? '🎯 助手光标：已开启' : '🎯 助手光标：已关闭');
       });
-    } else if (key === 'v') {
+    } else if (code === 'KeyV') {
       event.preventDefault();
       if (!this.showMe.isVoiceSupported) {
         this.showToast('当前浏览器不支持语音输入，请使用 Chrome');
