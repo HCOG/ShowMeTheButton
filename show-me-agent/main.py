@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import query, health, knowledge, docs
+from api.routes import query, health, knowledge, docs, journey, guide
 import os
 from dotenv import load_dotenv
 
@@ -24,6 +24,8 @@ app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(query.router, prefix="/api/v1", tags=["Query"])
 app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["Knowledge"])
 app.include_router(docs.router, prefix="/api/v1", tags=["Docs"])
+app.include_router(journey.router, prefix="/api/v1", tags=["Journey"])
+app.include_router(guide.router,   prefix="/api/v1", tags=["Guide"])
 
 
 @app.get("/")

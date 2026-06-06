@@ -111,11 +111,17 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
         await this.showMe.init();
       }
 
-      const result = await this.showMe.query(this.queryText);
+      const result = await this.showMe.guide(this.queryText);
 
-      this.resultText = result.reasoning;
-      this.confidence = result.confidence;
-      this.state = 'result';
+      if (result.type === 'journey') {
+        // The pill HUD has taken over — close the widget so it doesn't overlap.
+        this.state = 'collapsed';
+        this.queryText = '';
+      } else {
+        this.resultText = result.reasoning ?? '';
+        this.confidence = result.confidence ?? 0;
+        this.state = 'result';
+      }
     } catch (err: any) {
       this.errorText = err.message || '查询失败，请检查Agent服务是否运行';
       this.state = 'error';

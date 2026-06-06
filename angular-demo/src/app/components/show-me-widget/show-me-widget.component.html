@@ -23,7 +23,7 @@
           class="smt-input"
           [(ngModel)]="queryText"
           (keydown)="onKeydown($event)"
-          placeholder="描述你想做什么，例如：导出数据"
+          placeholder="找按钮或描述目标，例如：我想导出PDF报表"
           autofocus />
         <button
           *ngIf="voiceSupported"
@@ -52,7 +52,7 @@
     <!-- Loading state -->
     <div *ngIf="state === 'loading'" class="smt-body smt-center">
       <div class="smt-spinner"></div>
-      <p class="smt-hint">正在定位中…</p>
+      <p class="smt-hint">🤖 Agent 正在分析…</p>
     </div>
 
     <!-- Result state -->

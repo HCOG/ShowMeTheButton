@@ -1,6 +1,6 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { ShowMeSDK, JourneyConfig, JourneyState } from '@show-me/core';
+import { ShowMeSDK, JourneyConfig, JourneyState, GuideResult } from '@show-me/core';
 import { filter, Subject, Subscription } from 'rxjs';
 
 export type QueryStatus = 'idle' | 'scanning' | 'querying' | 'success' | 'error';
@@ -104,6 +104,15 @@ export class ShowMeService implements OnDestroy {
     return elements.length;
   }
 
+  /**
+   * Unified guide — backend decides single vs multi-step journey automatically.
+   * For journeys the pill HUD starts immediately; caller can close its own UI.
+   */
+  async guide(text: string, onJourneyState?: (s: JourneyState) => void): Promise<GuideResult> {
+    if (!this.sdk) await this.init();
+    return this.sdk!.guide(text, onJourneyState);
+  }
+
   async query(text: string): Promise<QueryResult> {
     if (!this.sdk) throw new Error('SDK not initialized');
 
@@ -128,6 +137,12 @@ export class ShowMeService implements OnDestroy {
   async startJourney(config: JourneyConfig, onState?: (s: JourneyState) => void): Promise<void> {
     if (!this.sdk) await this.init();
     await this.sdk!.startJourney(config, onState);
+  }
+
+  /** Start a smart journey where the agent plans steps from a natural-language goal. */
+  async startSmartJourney(goal: string, onState?: (s: JourneyState) => void): Promise<void> {
+    if (!this.sdk) await this.init();
+    await this.sdk!.startSmartJourney(goal, onState);
   }
 
   cancelJourney(): void {
