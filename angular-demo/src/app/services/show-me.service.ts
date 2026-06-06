@@ -139,12 +139,6 @@ export class ShowMeService implements OnDestroy {
     await this.sdk!.startJourney(config, onState);
   }
 
-  /** Start a smart journey where the agent plans steps from a natural-language goal. */
-  async startSmartJourney(goal: string, onState?: (s: JourneyState) => void): Promise<void> {
-    if (!this.sdk) await this.init();
-    await this.sdk!.startSmartJourney(goal, onState);
-  }
-
   cancelJourney(): void {
     this.sdk?.cancelJourney();
   }

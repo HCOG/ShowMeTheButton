@@ -19,13 +19,6 @@ export class DemoComponent implements OnInit, OnDestroy {
   scannedCount = 0;
   isQuerying = false;
 
-  // Smart Journey
-  smartGoal = '';
-  isJourneyRunning = false;
-  journeyStep = 0;
-  journeyTotal = 0;
-  journeyStatusMsg = '';
-
   constructor(public showMe: ShowMeService) {}
 
   ngOnInit(): void {}
@@ -91,47 +84,5 @@ export class DemoComponent implements OnInit, OnDestroy {
 
   onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter') this.submitQuery();
-  }
-
-  // ── Smart Journey ─────────────────────────────────────────────────────────
-
-  async startSmartJourney(): Promise<void> {
-    if (!this.smartGoal.trim() || this.isJourneyRunning) return;
-    if (!this.isInitialized) {
-      await this.initSDK();
-    }
-
-    this.isJourneyRunning = true;
-    this.journeyStep = 0;
-    this.journeyTotal = 0;
-    this.journeyStatusMsg = '🤖 Agent 正在规划步骤…';
-
-    try {
-      await this.showMe.startSmartJourney(this.smartGoal, state => {
-        this.journeyStep  = state.currentStep;
-        this.journeyTotal = state.totalSteps;
-
-        switch (state.status) {
-          case 'planning':   this.journeyStatusMsg = '🤖 Agent 正在规划步骤…'; break;
-          case 'running':    this.journeyStatusMsg = `第 ${state.currentStep}/${state.totalSteps} 步：${state.step?.title ?? ''}`; break;
-          case 'completed':  this.journeyStatusMsg = '✅ 引导完成！'; this.isJourneyRunning = false; break;
-          case 'cancelled':  this.journeyStatusMsg = '';             this.isJourneyRunning = false; break;
-          case 'error':      this.journeyStatusMsg = '❌ 规划失败，请检查 Agent 服务'; this.isJourneyRunning = false; break;
-        }
-      });
-    } catch (err: any) {
-      this.journeyStatusMsg = '❌ ' + (err.message || '未知错误');
-      this.isJourneyRunning = false;
-    }
-  }
-
-  cancelJourney(): void {
-    this.showMe.cancelJourney();
-    this.isJourneyRunning = false;
-    this.journeyStatusMsg = '';
-  }
-
-  onSmartGoalKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter') this.startSmartJourney();
   }
 }
