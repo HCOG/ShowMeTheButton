@@ -38,13 +38,11 @@ export class AgentClient {
     try {
       const response = await fetch(`${this.endpoint}/api/v1/query`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        'mode': 'cors',
-      },
-      body: JSON.stringify(request),
-      signal: controller.signal,
-    });
+        headers: { 'Content-Type': 'application/json' },
+        mode: 'cors',
+        body: JSON.stringify(request),
+        signal: controller.signal,
+      });
 
     clearTimeout(timeoutId);
 
@@ -72,6 +70,7 @@ export class AgentClient {
       const response = await fetch(`${this.endpoint}/api/v1/guide`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        mode: 'cors',
         body: JSON.stringify(request),
         signal: controller.signal,
       });
@@ -103,7 +102,8 @@ export class AgentClient {
     try {
       const response = await fetch(`${this.endpoint}/api/v1/journey/plan`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', mode: 'cors' },
+        headers: { 'Content-Type': 'application/json' },
+        mode: 'cors',
         body: JSON.stringify({ goal, elements }),
         signal: controller.signal,
       });

@@ -92,6 +92,8 @@ export class ShowMeSDK {
         description: userQuery,
         steps: response.steps,
       };
+      // Cancel any journey already in flight so we never stack two pill HUDs.
+      this.journey.cancel();
       if (onJourneyState) this.journey.onState(onJourneyState);
       // Fire-and-forget — the pill HUD takes over; caller can close its own UI.
       this.journey.start(config).catch(err =>
@@ -147,7 +149,14 @@ export class ShowMeSDK {
   }
 
   /**
-   * Start a SMART journey: the agent plans the steps from the user's goal.
+   * Power-user API. Start a SMART journey by explicitly planning steps from a
+   * goal via the dedicated `/api/v1/journey/plan` endpoint.
+   *
+   * Most callers should prefer {@link guide}, which lets the backend decide
+   * single-element vs journey from one unified call. Use this only when you
+   * KNOW the request is a multi-step goal and want to skip that classification
+   * (e.g. launching a journey from a "guided tour" button).
+   *
    * The pill overlay shows a "planning…" state while the backend reasons about
    * which buttons to click, then auto-executes each step with visual guidance.
    */
