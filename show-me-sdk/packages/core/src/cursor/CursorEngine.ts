@@ -16,7 +16,9 @@ export class CursorEngine {
     this.config = {
       autoHide: config.autoHide ?? true,
       followMouse: config.followMouse ?? true,
-      zIndex: config.zIndex ?? 999999,
+      // Use the maximum 32-bit integer so the cursor always sits above every
+      // modal, drawer, dropdown, or overlay regardless of their z-index value.
+      zIndex: config.zIndex ?? 2147483647,
       offsetX: config.offsetX ?? 15,  // 默认偏移15px
       offsetY: config.offsetY ?? 15,
     };
@@ -31,16 +33,31 @@ export class CursorEngine {
   private createCursor(): void {
     const container = document.createElement('div');
     container.id = 'show-me-sdk-cursor';
+
+    // position:fixed + explicit z-index as inline styles are required so that
+    // the cursor forms its own stacking context and beats every modal / overlay.
+    // Without a positioned ancestor the z-index inside Shadow DOM has no effect.
+    container.style.cssText = [
+      'position: fixed',
+      'top: 0',
+      'left: 0',
+      'width: 0',
+      'height: 0',
+      'overflow: visible',
+      'pointer-events: none',
+      `z-index: ${this.config.zIndex}`,
+    ].join('; ');
+
     container.attachShadow({ mode: 'open' });
     this.shadowRoot = container.shadowRoot;
-    
+
     const style = document.createElement('style');
     style.textContent = `
       :host {
         pointer-events: none;
         z-index: ${this.config.zIndex};
       }
-      
+
       .cursor {
         position: fixed;
         width: 24px;
@@ -51,11 +68,11 @@ export class CursorEngine {
         box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
         transition: transform 0.1s ease;
       }
-      
+
       .cursor.hidden {
         opacity: 0;
       }
-      
+
       .tooltip {
         position: absolute;
         background: rgba(0, 0, 0, 0.8);
@@ -69,14 +86,15 @@ export class CursorEngine {
         transform: translateX(-50%);
       }
     `;
-    
+
     const cursor = document.createElement('div');
     cursor.className = 'cursor';
-    
+
     this.shadowRoot?.appendChild(style);
     this.shadowRoot?.appendChild(cursor);
-    
+
     this.cursorElement = cursor;
+    // Append last so DOM order also favours the cursor when z-indexes tie.
     document.body.appendChild(container);
   }
 
