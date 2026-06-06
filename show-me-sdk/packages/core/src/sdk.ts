@@ -1,6 +1,7 @@
 import { EventBus, SDK_EVENTS } from './bus/EventBus';
 import { DOMScanner } from './scanner/DOMScanner';
 import { CursorEngine } from './cursor/CursorEngine';
+import { TargetRing } from './cursor/TargetRing';
 import { AgentClient } from './client/AgentClient';
 import { JourneyRunner, JourneyConfig, JourneyState } from './journey/JourneyRunner';
 import { SpeechInput } from './voice/SpeechInput';
@@ -35,6 +36,12 @@ export class ShowMeSDK {
   private initialized = false;
   private active = false;
 
+  /** Highlight ring for single-element location (separate from the journey's). */
+  private highlightRing: TargetRing | null = null;
+  private highlightTimer: ReturnType<typeof setTimeout> | null = null;
+  /** How long the single-location highlight stays before fading. */
+  private static readonly HIGHLIGHT_MS = 4000;
+
   constructor(config: ShowMeConfig) {
     this.config = config;
     this.eventBus = new EventBus();
@@ -67,6 +74,7 @@ export class ShowMeSDK {
 
   deactivate(): void {
     this.active = false;
+    this._clearHighlight();
     this.cursorEngine.hide();
     this.eventBus.emit(SDK_EVENTS.DEACTIVATED);
   }
@@ -97,7 +105,9 @@ export class ShowMeSDK {
     }
 
     if (response.type === 'journey') {
-      // Cancel any journey already in flight so we never stack two pill HUDs.
+      // Clear any lingering single-location highlight, and cancel any journey
+      // already in flight so we never stack two pill HUDs.
+      this._clearHighlight();
       this.journey.cancel();
       if (onJourneyState) this.journey.onState(onJourneyState);
       // Drive the journey iteratively: the backend's up-front steps (if any)
@@ -133,6 +143,7 @@ export class ShowMeSDK {
       const target = this.domScanner.getElementById(result.target_id);
       if (target) {
         await this.cursorEngine.flyTo(target.element);
+        this._highlight(target.element);
         await this.cursorEngine.hover(target.element, result.reasoning);
       }
     }
@@ -145,8 +156,9 @@ export class ShowMeSDK {
   }
 
   /**
-   * Fly the cursor to a scanned element by id and show its reasoning tooltip.
-   * Used to act on a low-confidence guide() result after the user confirms.
+   * Fly the cursor to a scanned element by id, pulse a highlight ring around it,
+   * and show its reasoning tooltip. Used both to act on a low-confidence guide()
+   * result after the user confirms and as a standalone "show me this" helper.
    */
   async flyToElement(targetId: string, tooltip?: string): Promise<boolean> {
     if (!this.initialized) await this.init();
@@ -154,8 +166,30 @@ export class ShowMeSDK {
     const target = this.domScanner.getElementById(targetId);
     if (!target) return false;
     await this.cursorEngine.flyTo(target.element);
+    this._highlight(target.element);
     await this.cursorEngine.hover(target.element, tooltip ?? '');
     return true;
+  }
+
+  /**
+   * Pulse a highlight ring around an element for single-element location. The
+   * cursor's own tooltip carries the reasoning, so the ring is label-less here.
+   * Auto-fades after HIGHLIGHT_MS; replaced if another highlight starts.
+   */
+  private _highlight(element: HTMLElement): void {
+    this._clearHighlight();
+    this.highlightRing = new TargetRing();
+    this.highlightRing.show(element);
+    this.highlightTimer = setTimeout(() => this._clearHighlight(), ShowMeSDK.HIGHLIGHT_MS);
+  }
+
+  private _clearHighlight(): void {
+    if (this.highlightTimer) {
+      clearTimeout(this.highlightTimer);
+      this.highlightTimer = null;
+    }
+    this.highlightRing?.hide();
+    this.highlightRing = null;
   }
 
   async query(userQuery: string): Promise<any> {
@@ -172,6 +206,7 @@ export class ShowMeSDK {
       const target = this.domScanner.getElementById(response.result.target_id);
       if (target) {
         await this.cursorEngine.flyTo(target.element);
+        this._highlight(target.element);
         await this.cursorEngine.hover(target.element, response.result.reasoning);
       }
     }
