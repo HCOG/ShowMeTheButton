@@ -135,7 +135,8 @@
                 (click)="startGuidedTour(currentWorkflow)">
           <span *ngIf="!journeyRunning">▶ 启动导航教程</span>
           <span *ngIf="journeyRunning">
-            正在进行第 {{ journeyStep }} / {{ journeyTotal }} 步…
+            <ng-container *ngIf="journeyTotal > 0; else iterativeStep">正在进行第 {{ journeyStep }} / {{ journeyTotal }} 步…</ng-container>
+            <ng-template #iterativeStep>正在进行第 {{ journeyStep }} 步…</ng-template>
           </span>
         </button>
         <button *ngIf="journeyRunning" class="btn-cancel-tour" (click)="cancelJourney()">

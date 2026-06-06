@@ -6,7 +6,6 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { marked } from 'marked';
 import { WikiService, Category, DocContent, WorkflowDetail, WorkflowSummary } from '../../services/wiki.service';
 import { ShowMeService } from '../../services/show-me.service';
-import { JourneyConfig } from '@show-me/core';
 
 type ViewMode = 'doc' | 'workflow';
 
@@ -102,18 +101,16 @@ export class WikiComponent implements OnInit {
   // ── Journey ──────────────────────────────────────────────────────────────────
 
   async startGuidedTour(workflow: WorkflowDetail) {
-    const journey: JourneyConfig = {
-      id: workflow.id,
-      title: workflow.title,
-      description: workflow.description,
-      steps: workflow.steps.map(s => ({
-        step: s.step,
-        title: s.title,
-        description: s.description,
-        query: s.query,
-        hint: s.hint,
-      })),
-    };
+    // The workflow's curated steps SEED the journey; the agent then re-plans
+    // against the live DOM after each step, so the tour stays accurate even if
+    // the UI drifts from the authored steps, and can span multiple pages.
+    const seedSteps = workflow.steps.map(s => ({
+      step: s.step,
+      title: s.title,
+      description: s.description,
+      query: s.query,
+      hint: s.hint,
+    }));
 
     this.journeyRunning = true;
     this.journeyStep = 0;
@@ -128,17 +125,24 @@ export class WikiComponent implements OnInit {
     }
 
     try {
-      await this.showMe.startJourney(journey, state => {
-        this.journeyStep = state.currentStep;
-        this.journeyTotal = state.totalSteps;
-        if (state.status === 'completed') {
-          this.journeyRunning = false;
-          this.journeyStatus = '✅ 教程完成！';
-        } else if (state.status === 'cancelled') {
-          this.journeyRunning = false;
-          this.journeyStatus = '';
-        }
-      });
+      await this.showMe.startIterativeJourney(
+        workflow.description,
+        state => {
+          this.journeyStep = state.currentStep;
+          this.journeyTotal = state.totalSteps;
+          if (state.status === 'completed') {
+            this.journeyRunning = false;
+            this.journeyStatus = '✅ 教程完成！';
+          } else if (state.status === 'cancelled') {
+            this.journeyRunning = false;
+            this.journeyStatus = '';
+          } else if (state.status === 'error') {
+            this.journeyRunning = false;
+            this.journeyStatus = '❌ 教程出错';
+          }
+        },
+        seedSteps,
+      );
     } catch (e) {
       this.journeyRunning = false;
     }
