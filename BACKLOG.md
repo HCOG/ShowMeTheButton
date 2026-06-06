@@ -49,26 +49,26 @@ be swallowed, causing the detector to miss the action on some mobile browsers.
 
 ## 🟡 UX Improvements
 
-### U1 — No visual gap between widget closing and pill appearing
+### ✅ U1 — No visual gap between widget closing and pill appearing  *(RESOLVED — the journey pill mounts synchronously (planning state) before guide() returns, so it is already visible when the widget closes)*
 When `guide()` returns `type: 'journey'`, the widget closes immediately but the
 pill takes 1–2 s to appear (planning + first scan). Brief "nothing is happening" gap.  
 **Fix:** keep the widget in a "planning…" loading state until the pill's first update
 fires, then close it.
 
-### U2 — Step hint/tooltip removed in new runner
+### ✅ U2 — Step hint/tooltip removed in new runner  *(RESOLVED — TargetRing now renders a popover with the step hint/description, anchored above/below the target)*
 The old runner called `cursorEngine.hover(element, hint, 4500)` showing a tooltip
 near the cursor. The new runner relies solely on the bottom-left pill for context,
 which is far from where the user is looking.  
 **Fix:** render a small popover anchored near the target ring (above/below the element)
 showing the step description, in addition to the pill.
 
-### U3 — Low-confidence single results act without confirmation
+### ✅ U3 — Low-confidence single results act without confirmation  *(RESOLVED — guide() returns needsConfirmation when confidence < 0.5 without moving the cursor; the widget shows a confirm prompt and only flies via flyToElement() on confirm)*
 `guide()` always flies the cursor even when confidence is low (e.g. 0.3). A wrong
 target is more confusing than asking the user to clarify.  
 **Fix:** if `confidence < 0.5`, show the result in the widget with a "Is this what
 you meant?" prompt rather than flying immediately.
 
-### U4 — No feedback when journey planning fails mid-session
+### ✅ U4 — No feedback when journey planning fails mid-session  *(RESOLVED — all journey errors route through the pill's error state via _fail(); the iterative runner surfaces the backend error message)*
 Related to B3. The user experience on any error (planning failure, network timeout,
 agent down) should be a consistent error state in the widget, not a silent close.
 
@@ -76,7 +76,7 @@ agent down) should be a consistent error state in the widget, not a silent close
 
 ## 🟠 Architecture Improvements
 
-### A1 — Journey planner is single-page-only  ← highest leverage
+### ✅ A1 — Journey planner is single-page-only  *(RESOLVED — added POST /api/v1/journey/next-step + JourneyRunner.startIterative(); the agent plans one step at a time against the live DOM, re-scanning after each step. guide() journeys now run iteratively, seeded by the up-front plan.)*
 **File:** `show-me-sdk/packages/core/src/journey/JourneyRunner.ts` → `startSmart()`  
 `planJourney()` sends the current page's elements once before execution starts.
 Multi-page goals ("create a new user account") produce inaccurate plans because
@@ -85,13 +85,13 @@ the agent can't see elements on pages it hasn't navigated to yet.
 and ask the agent "what's next?" until the goal is achieved or the agent signals done.
 New backend endpoint: `POST /api/v1/journey/next-step` (goal + completed steps + current DOM).
 
-### A2 — Wiki workflows still use static `JourneyConfig`
+### ✅ A2 — Wiki workflows still use static `JourneyConfig`  *(RESOLVED — startGuidedTour() now calls startIterativeJourney(workflow.description, …, seedSteps) so curated steps prime the run but the agent adapts/extends against the live DOM)*
 **File:** `angular-demo/src/app/pages/wiki/wiki.component.ts` → `startGuidedTour()`  
 Hardcoded steps loaded from the backend YAML. Steps go stale when the UI changes.  
 **Fix:** migrate to `startSmart(workflow.description)` so steps are generated
 dynamically from the live DOM.
 
-### A3 — Double DOM scan on navigation
+### ✅ A3 — Double DOM scan on navigation  *(RESOLVED — the router rescan is now debounced and skipped while a journey is active, since the runner re-scans per step)*
 **File:** `angular-demo/src/app/services/show-me.service.ts`  
 `routerSub` calls `rescan()` on every `NavigationEnd`. The journey runner also calls
 `domScanner.refresh()` at the start of each step. On step transitions that involve
@@ -148,13 +148,10 @@ add an optional `onStep` callback to `JourneyRunner` for the host app to log.
 
 | # | Item | Effort | Impact |
 |---|------|--------|--------|
-| 1 | **U1** — close widget only after pill appears | small | high (obvious UX gap) |
-| 2 | **A1** — iterative journey re-planning | large | very high (unlocks multi-page flows) |
-| 3 | **U2** — step hint popover near target ring | medium | high (context where user looks) |
-| 4 | **U3** — low-confidence confirmation | small | medium |
-| 5 | **P2** — keyboard navigation for pill | small | medium |
-| 6 | **A2** — wiki dynamic journeys | medium | medium |
-| 7 | **A3** — debounce double DOM scan | small | low |
-| 8 | **P1 / P3 / P4** — accessibility, mobile keyboard, journey history | mixed | mixed |
+| 1 | **P2** — keyboard navigation for pill (Esc cancel / Enter done) | small | medium |
+| 2 | **P1** — ARIA roles on pill/ring for screen readers | small | medium |
+| 3 | **P3** — reposition pill above the mobile soft keyboard | small | low |
+| 4 | **P4** — journey history / step event log | medium | low |
 
-_Done: B1–B5, C1–C2._
+_Done: B1–B5 (bugs), C1–C2 (housekeeping), U1–U4 (UX), A1–A3 (architecture).
+Only Polish/accessibility (P1–P4) remains._
