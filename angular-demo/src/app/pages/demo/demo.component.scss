@@ -222,3 +222,58 @@ $primary: #667eea;
   h4 { margin: 0 0 4px; font-size: 14px; color: #2d3748; }
   p { margin: 0; font-size: 12px; color: #718096; line-height: 1.4; }
 }
+
+// ── Smart Journey ─────────────────────────────────────────────────────────────
+
+.smart-journey-section {
+  border-top: 2px solid #e9d8fd;
+  margin-top: 4px;
+  padding-top: 16px;
+  background: linear-gradient(135deg, #faf5ff 0%, #f0f4ff 100%);
+  border-radius: 12px;
+  padding: 16px;
+
+  h3 { color: #553c9a; }
+}
+
+.journey-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.journey-status {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #553c9a;
+  background: rgba(102, 126, 234, 0.08);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-height: 36px;
+}
+
+.journey-progress {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(102, 126, 234, 0.2);
+  transition: background 0.3s;
+
+  &.active {
+    background: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+  }
+
+  &.done {
+    background: #48bb78;
+  }
+}

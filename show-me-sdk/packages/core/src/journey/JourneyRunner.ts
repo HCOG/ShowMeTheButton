@@ -3,6 +3,8 @@ import { CursorEngine } from '../cursor/CursorEngine';
 import { AgentClient } from '../client/AgentClient';
 import { EventBus } from '../bus/EventBus';
 
+// ── Public types ──────────────────────────────────────────────────────────────
+
 export interface JourneyStep {
   step: number;
   title: string;
@@ -20,7 +22,7 @@ export interface JourneyConfig {
   steps: JourneyStep[];
 }
 
-export type JourneyStatus = 'idle' | 'running' | 'completed' | 'cancelled' | 'error';
+export type JourneyStatus = 'idle' | 'planning' | 'running' | 'completed' | 'cancelled' | 'error';
 
 export interface JourneyState {
   status: JourneyStatus;
@@ -30,18 +32,413 @@ export interface JourneyState {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ProgressionDetector — resolves when the user completes the current step.
+//
+// Triggers:
+//   1. User clicks the highlighted target element (or any child)
+//   2. The page URL changes (navigation happened)
+//   3. The "Done" button inside the pill HUD is clicked
+// ─────────────────────────────────────────────────────────────────────────────
+
+type ProgressionReason = 'clicked' | 'navigated' | 'done';
+
+class ProgressionDetector {
+  private cleanup: Array<() => void> = [];
+
+  /** Returns a promise that resolves once the user takes the expected action. */
+  waitForAction(target: HTMLElement | null): Promise<ProgressionReason> {
+    return new Promise<ProgressionReason>((resolve) => {
+      let settled = false;
+      const settle = (reason: ProgressionReason) => {
+        if (settled) return;
+        settled = true;
+        this._teardown();
+        resolve(reason);
+      };
+
+      // 1. Click on target element (capture phase so we see it before it disappears)
+      if (target) {
+        const onDocClick = (e: Event) => {
+          const clicked = e.target as Node;
+          if (target.contains(clicked) || target === clicked) {
+            // Slight delay so the click's own effect (e.g. modal opening) can settle
+            setTimeout(() => settle('clicked'), 400);
+          }
+        };
+        document.addEventListener('click', onDocClick, true);
+        this.cleanup.push(() => document.removeEventListener('click', onDocClick, true));
+      }
+
+      // 2. URL change (popstate / hashchange / SPA navigation via polling)
+      const initialHref = location.href;
+      const urlPoll = setInterval(() => {
+        if (location.href !== initialHref) settle('navigated');
+      }, 300);
+      const onPop = () => settle('navigated');
+      window.addEventListener('popstate', onPop);
+      window.addEventListener('hashchange', onPop);
+      this.cleanup.push(() => {
+        clearInterval(urlPoll);
+        window.removeEventListener('popstate', onPop);
+        window.removeEventListener('hashchange', onPop);
+      });
+
+      // 3. "Done" button click inside the pill (dispatched as a custom event)
+      const onDone = () => settle('done');
+      document.addEventListener('smt:done', onDone);
+      this.cleanup.push(() => document.removeEventListener('smt:done', onDone));
+    });
+  }
+
+  abort() {
+    this._teardown();
+  }
+
+  private _teardown() {
+    this.cleanup.forEach(fn => fn());
+    this.cleanup = [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TargetRing — a pulsing highlight ring rendered over the target element.
+// Uses a separate fixed-position overlay so it lives above all page content.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class TargetRing {
+  private container: HTMLElement | null = null;
+  private shadow: ShadowRoot | null = null;
+  private ringEl: HTMLElement | null = null;
+  private rafId: number | null = null;
+  private target: HTMLElement | null = null;
+
+  show(target: HTMLElement): void {
+    this.target = target;
+
+    if (!this.container) {
+      this.container = document.createElement('div');
+      this.container.id = 'smt-target-ring';
+      Object.assign(this.container.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        width: '0',
+        height: '0',
+        overflow: 'visible',
+        pointerEvents: 'none',
+        zIndex: '2147483646',
+      });
+      this.shadow = this.container.attachShadow({ mode: 'open' });
+
+      const style = document.createElement('style');
+      style.textContent = RING_STYLES;
+      this.shadow.appendChild(style);
+
+      this.ringEl = document.createElement('div');
+      this.ringEl.className = 'ring';
+      this.shadow.appendChild(this.ringEl);
+
+      document.body.appendChild(this.container);
+    }
+
+    this._updatePosition();
+    this._startTracking();
+  }
+
+  hide(): void {
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+    if (this.ringEl) {
+      this.ringEl.style.opacity = '0';
+    }
+    // Remove after fade
+    setTimeout(() => {
+      this.container?.remove();
+      this.container = null;
+      this.shadow = null;
+      this.ringEl = null;
+      this.target = null;
+    }, 300);
+  }
+
+  private _updatePosition() {
+    if (!this.target || !this.ringEl) return;
+    const r = this.target.getBoundingClientRect();
+    const pad = 6;
+    Object.assign(this.ringEl.style, {
+      top: `${r.top - pad}px`,
+      left: `${r.left - pad}px`,
+      width: `${r.width + pad * 2}px`,
+      height: `${r.height + pad * 2}px`,
+      opacity: '1',
+    });
+  }
+
+  private _startTracking() {
+    const tick = () => {
+      this._updatePosition();
+      this.rafId = requestAnimationFrame(tick);
+    };
+    this.rafId = requestAnimationFrame(tick);
+  }
+}
+
+const RING_STYLES = `
+  .ring {
+    position: fixed;
+    border-radius: 8px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease, top 0.1s, left 0.1s, width 0.1s, height 0.1s;
+    animation: ring-pulse 1.8s ease-in-out infinite;
+    box-sizing: border-box;
+  }
+  @keyframes ring-pulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0 2px #667eea,
+        0 0 0 5px rgba(102,126,234,0.25),
+        0 0 20px rgba(102,126,234,0.15);
+    }
+    50% {
+      box-shadow:
+        0 0 0 3px #764ba2,
+        0 0 0 10px rgba(118,75,162,0.2),
+        0 0 30px rgba(118,75,162,0.1);
+    }
+  }
+`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JourneyPill — compact bottom-left overlay.
+//
+// Shows: step dots · step title · [Done] · [✕]
+// The "Done" button fades in after 2 s so the user can manually advance
+// when auto-detection doesn't fire (e.g. filling a form field).
+// ─────────────────────────────────────────────────────────────────────────────
+
+type PillPhase = 'planning' | 'finding' | 'navigating' | 'waiting' | 'completed';
+
+class JourneyPill {
+  private container: HTMLElement | null = null;
+  private shadow: ShadowRoot | null = null;
+  private pillEl: HTMLElement | null = null;
+  private onCancel: () => void;
+
+  constructor(onCancel: () => void) {
+    this.onCancel = onCancel;
+  }
+
+  mount(): void {
+    if (this.container) return;
+
+    this.container = document.createElement('div');
+    this.container.id = 'smt-journey-pill';
+    Object.assign(this.container.style, {
+      position: 'fixed',
+      bottom: '24px',
+      left: '24px',
+      zIndex: '2147483646',
+      pointerEvents: 'none',
+    });
+    this.shadow = this.container.attachShadow({ mode: 'open' });
+
+    const style = document.createElement('style');
+    style.textContent = PILL_STYLES;
+    this.shadow.appendChild(style);
+
+    this.pillEl = document.createElement('div');
+    this.pillEl.className = 'pill';
+    this.shadow.appendChild(this.pillEl);
+
+    // Event delegation: clicks bubble out to shadow host's content
+    this.pillEl.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('button');
+      if (!btn) return;
+      e.stopPropagation();
+      if (btn.id === 'smt-cancel') {
+        this.onCancel();
+      } else if (btn.id === 'smt-done') {
+        document.dispatchEvent(new CustomEvent('smt:done'));
+      }
+    });
+
+    // Pills need pointer-events on the pill itself, not the container
+    this.pillEl.style.pointerEvents = 'all';
+    document.body.appendChild(this.container);
+  }
+
+  /** Show a "planning…" state while the agent is figuring out the steps. */
+  showPlanning(): void {
+    if (!this.pillEl) return;
+    this.pillEl.innerHTML = `
+      <span class="planning-icon">🤖</span>
+      <span class="title">正在规划步骤…</span>
+      <button class="btn-cancel" id="smt-cancel" title="取消">✕</button>
+    `;
+  }
+
+  update(current: number, total: number, step: JourneyStep, phase: PillPhase): void {
+    if (!this.pillEl) return;
+
+    const phaseLabel: Record<PillPhase, string> = {
+      planning:   '🤖 正在规划…',
+      finding:    '🔍 定位中…',
+      navigating: '✈️ 飞向目标…',
+      waiting:    '👆 请执行操作',
+      completed:  '🎉 完成！',
+    };
+
+    // Build dots
+    const dots = Array.from({ length: total }, (_, i) => {
+      const cls = i < current - 1 ? 'dot done' : i === current - 1 ? 'dot active' : 'dot';
+      return `<span class="${cls}"></span>`;
+    }).join('');
+
+    const isWaiting = phase === 'waiting';
+    const isCompleted = phase === 'completed';
+    const titleText = step.title.length > 40 ? step.title.slice(0, 38) + '…' : step.title;
+
+    this.pillEl.innerHTML = `
+      <div class="dots">${dots}</div>
+      <span class="step-label">${current}/${total}</span>
+      <span class="divider">·</span>
+      <span class="title">${titleText}</span>
+      <span class="phase ${phase}">${phaseLabel[phase]}</span>
+      ${isWaiting
+        ? `<button class="btn-done ${isWaiting ? 'visible' : ''}" id="smt-done">完成 ✓</button>`
+        : isCompleted
+        ? `<span class="completed-icon">✅</span>`
+        : ''}
+      <button class="btn-cancel" id="smt-cancel" title="取消">✕</button>
+    `;
+  }
+
+  unmount(): void {
+    this.container?.remove();
+    this.container = null;
+    this.pillEl = null;
+    this.shadow = null;
+  }
+}
+
+const PILL_STYLES = `
+  :host { all: initial; }
+
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(18, 22, 38, 0.94);
+    color: #e2e8f0;
+    border-radius: 100px;
+    padding: 10px 14px 10px 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.06);
+    backdrop-filter: blur(12px);
+    animation: pill-in 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    white-space: nowrap;
+    max-width: 520px;
+  }
+
+  @keyframes pill-in {
+    from { opacity: 0; transform: translateY(12px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .dots { display: flex; gap: 4px; flex-shrink: 0; }
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    transition: background 0.3s;
+  }
+  .dot.active  { background: #667eea; box-shadow: 0 0 0 2px rgba(102,126,234,0.35); }
+  .dot.done    { background: #48bb78; }
+
+  .step-label { font-size: 11px; color: rgba(255,255,255,0.4); flex-shrink: 0; }
+  .divider    { color: rgba(255,255,255,0.2); flex-shrink: 0; }
+  .title      { font-weight: 500; color: #f0f4ff; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
+
+  .phase {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.6);
+  }
+  .phase.waiting    { background: rgba(102,126,234,0.25); color: #a3b3ff; }
+  .phase.navigating { background: rgba(118,75,162,0.25); color: #c4a3ff; }
+  .phase.completed  { background: rgba(72,187,120,0.25); color: #9ae6b4; }
+  .phase.finding    { background: rgba(237,137,54,0.18); color: #fbb36a; }
+
+  .planning-icon { font-size: 16px; }
+
+  .completed-icon { font-size: 16px; flex-shrink: 0; }
+
+  .btn-done {
+    background: rgba(102,126,234,0.3);
+    color: #a3b3ff;
+    border: 1px solid rgba(102,126,234,0.4);
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    opacity: 0;
+    animation: fade-in 0.3s ease 2s forwards;
+    transition: background 0.15s;
+  }
+  .btn-done:hover { background: rgba(102,126,234,0.5); }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .btn-cancel {
+    background: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.5);
+    border: none;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+    padding: 0;
+  }
+  .btn-cancel:hover { background: rgba(255,80,80,0.25); color: #fc8181; }
+`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JourneyRunner — orchestrates the guided multi-step journey.
+//
+// Two entry points:
+//   start(config)       — static pre-defined steps (original flow, preserved)
+//   startSmart(goal)    — dynamic: backend plans the steps from the user's goal
+//
+// Progression between steps is fully automatic:
+//   - A ProgressionDetector listens for clicks on the highlighted element,
+//     URL changes, or the "Done" button in the pill.
+//   - No explicit "Next →" button required.
+// ─────────────────────────────────────────────────────────────────────────────
 
 export class JourneyRunner {
-  private hud: JourneyHUD | null = null;
-  private journey: JourneyConfig | null = null;
+  private pill: JourneyPill | null = null;
+  private ring: TargetRing | null = null;
+  private detector: ProgressionDetector | null = null;
 
-  /** Current 1-based step index, 0 = not started */
+  private journey: JourneyConfig | null = null;
   private currentStep = 0;
   private status: JourneyStatus = 'idle';
-
-  /** Resolved by user clicking "Next" in the HUD */
-  private nextResolve: (() => void) | null = null;
-
   private onStateChange?: (state: JourneyState) => void;
 
   constructor(
@@ -55,6 +452,14 @@ export class JourneyRunner {
     this.onStateChange = cb;
   }
 
+  /**
+   * Read-back helper that defeats TypeScript's control-flow narrowing of
+   * `this.status`. After `this.status = 'x'`, TS may narrow the type to `'x'`
+   * within the same scope; calling a method resets that narrowing so we can
+   * legitimately compare against other values (e.g. 'cancelled').
+   */
+  private _st(): JourneyStatus { return this.status; }
+
   getState(): JourneyState {
     return {
       status: this.status,
@@ -64,85 +469,91 @@ export class JourneyRunner {
     };
   }
 
-  private _emit() {
-    const s = this.getState();
-    this.onStateChange?.(s);
-    this.eventBus.emit('journey:state', s);
-  }
-
   // ── Public API ──────────────────────────────────────────────────────────────
 
-  async start(journey: JourneyConfig): Promise<void> {
-    // Cancel any in-progress journey first
-    if (this.status === 'running') {
-      this._doCancel();
+  /** Start a journey from a pre-defined config (steps known in advance). */
+  async start(config: JourneyConfig): Promise<void> {
+    this._cancel();
+    this.journey = config;
+    this._beginPill();
+    await this._runLoop(0);
+  }
+
+  /**
+   * Start a SMART journey — the backend agent plans the steps from the goal.
+   * The pill shows a "planning" state until steps are returned.
+   */
+  async startSmart(goal: string): Promise<void> {
+    this._cancel();
+
+    // Show pill in planning mode while we wait for the agent
+    this._beginPill();
+    this.pill!.showPlanning();
+    this.status = 'planning';
+    this._emit();
+
+    let steps: JourneyStep[];
+    try {
+      await this.domScanner.refresh();
+      const elements = this.domScanner.getElements();
+      steps = await this.agentClient.planJourney(
+        goal,
+        elements.map(e => ({ id: e.id, label: e.label, type: e.type, text: e.metadata.text })),
+      );
+    } catch (err) {
+      console.warn('[ShowMeSDK] Smart journey planning failed:', err);
+      this.status = 'error';
+      this._emit();
+      this.pill?.unmount();
+      this.pill = null;
+      return;
     }
 
-    this.journey = journey;
-    this.currentStep = 0;
-    this.status = 'running';
-    this.nextResolve = null;
+    if (this._st() === 'cancelled') return;
 
-    this.hud = new JourneyHUD(journey, {
-      onNext:   () => this._advanceNext(),
-      onPrev:   () => this._goToPrev(),
-      onCancel: () => this.cancel(),
-    });
-    this.hud.mount();
+    if (!steps.length) {
+      console.warn('[ShowMeSDK] Agent returned no steps for goal:', goal);
+      this.status = 'error';
+      this._emit();
+      this.pill?.unmount();
+      this.pill = null;
+      return;
+    }
+
+    this.journey = {
+      id: `smart-${Date.now()}`,
+      title: goal,
+      description: goal,
+      steps,
+    };
 
     await this._runLoop(0);
   }
 
-  cancel() {
-    this._doCancel();
-  }
-
-  private _doCancel() {
-    this.status = 'cancelled';
-    // Unblock any waiting _waitNext() call
-    const resolve = this.nextResolve;
-    this.nextResolve = null;
-    resolve?.();
-    // Tear down HUD
-    this.hud?.unmount();
-    this.hud = null;
-    this._emit();
-  }
-
-  private _advanceNext() {
-    const resolve = this.nextResolve;
-    this.nextResolve = null;
-    resolve?.();
-  }
-
-  private _goToPrev() {
-    if (this.currentStep <= 1) return;
-    // Signal the current wait to jump back by setting step index before resolving
-    this.currentStep = Math.max(1, this.currentStep - 2); // will be re-incremented
-    this._advanceNext();
+  cancel(): void {
+    this._cancel();
   }
 
   // ── Core loop ───────────────────────────────────────────────────────────────
 
   private async _runLoop(fromIndex: number): Promise<void> {
     const steps = this.journey!.steps;
-    let i = fromIndex;
+    this.status = 'running';
 
-    while (i < steps.length) {
-      if (this.status !== 'running') break;
+    for (let i = fromIndex; i < steps.length; i++) {
+      if (this._st() !== 'running') break;
 
       this.currentStep = i + 1;
       const step = steps[i];
-
-      // ── Find & fly ──────────────────────────────────────────────────────────
-      this.hud!.update(this.currentStep, steps.length, step, 'finding');
       this._emit();
 
-      await this.domScanner.refresh();
+      // ── Phase: finding ─────────────────────────────────────────────────────
+      this.pill!.update(this.currentStep, steps.length, step, 'finding');
 
+      await this.domScanner.refresh();
       const elements = this.domScanner.getElements();
-      let targetId: string | null = null;
-      let reasoning = '';
+
+      let targetEl: HTMLElement | null = null;
 
       try {
         const resp = await this.agentClient.query({
@@ -151,248 +562,92 @@ export class JourneyRunner {
           context: { url: window.location.href, timestamp: Date.now() },
         });
         if (resp.success && resp.result?.target_id) {
-          targetId = resp.result.target_id;
-          reasoning = resp.result.reasoning;
+          const found = this.domScanner.getElementById(resp.result.target_id);
+          if (found) targetEl = found.element;
         }
       } catch (err) {
-        console.warn('[ShowMeSDK] Journey agent query failed:', err);
+        console.warn('[ShowMeSDK] Step agent query failed:', err);
       }
 
-      // Guard: loop might have been cancelled during the async agent call
-      if (this.status !== 'running') break;
+      if (this._st() !== 'running') break;
 
-      if (targetId) {
-        const target = this.domScanner.getElementById(targetId);
-        if (target) {
-          this.hud!.update(this.currentStep, steps.length, step, 'navigating');
-          await this.cursorEngine.flyTo(target.element);
-          await this.cursorEngine.hover(
-            target.element,
-            step.hint ?? reasoning ?? step.description,
-            4500,
-          );
-        }
+      // ── Phase: navigating ──────────────────────────────────────────────────
+      if (targetEl) {
+        this.pill!.update(this.currentStep, steps.length, step, 'navigating');
+        await this.cursorEngine.flyTo(targetEl);
+
+        // Show pulsing ring around the target
+        if (!this.ring) this.ring = new TargetRing();
+        this.ring.show(targetEl);
       }
 
-      // Guard again after animation
-      if (this.status !== 'running') break;
+      if (this._st() !== 'running') break;
 
-      // ── Last step: auto-complete ─────────────────────────────────────────────
+      // ── Last step: auto-complete once user clicks ──────────────────────────
       if (i === steps.length - 1) {
+        this.pill!.update(this.currentStep, steps.length, step, 'waiting');
+        this.detector = new ProgressionDetector();
+        await this.detector.waitForAction(targetEl);
+        this.detector = null;
+
+        if (this._st() !== 'running') break;
+
+        this.ring?.hide();
+        this.ring = null;
+
         this.status = 'completed';
-        this.hud!.update(this.currentStep, steps.length, step, 'completed');
+        this.pill!.update(this.currentStep, steps.length, step, 'completed');
         this._emit();
-        await sleep(2500);
-        this.hud?.unmount();
-        this.hud = null;
+        await sleep(1800);
+        this._teardownOverlays();
         break;
       }
 
-      // ── Intermediate step: wait for "Next →" click ───────────────────────────
-      this.hud!.update(this.currentStep, steps.length, step, 'waiting');
+      // ── Intermediate step: wait for user action, then auto-advance ─────────
+      this.pill!.update(this.currentStep, steps.length, step, 'waiting');
+      this.detector = new ProgressionDetector();
+      await this.detector.waitForAction(targetEl);
+      this.detector = null;
 
-      const prevStep = this.currentStep;
-      await this._waitNext();
+      if (this._st() !== 'running') break;
 
-      if (this.status !== 'running') break;
-
-      // Handle "Prev" — currentStep was decremented by _goToPrev before resolving
-      if (this.currentStep < prevStep) {
-        i = this.currentStep; // loop will do currentStep = i+1 at top
-      } else {
-        i++; // normal advance
-      }
+      // Brief "step done" flash before moving on
+      this.ring?.hide();
+      this.ring = null;
+      await sleep(300);
     }
   }
 
-  private _waitNext(): Promise<void> {
-    return new Promise<void>(resolve => {
-      this.nextResolve = resolve;
-    });
-  }
-}
+  // ── Helpers ─────────────────────────────────────────────────────────────────
 
-// ── Journey HUD (Shadow DOM overlay) ─────────────────────────────────────────
-
-type HudPhase = 'finding' | 'navigating' | 'waiting' | 'completed';
-
-interface HudCallbacks {
-  onNext: () => void;
-  onPrev: () => void;
-  onCancel: () => void;
-}
-
-class JourneyHUD {
-  private container: HTMLElement | null = null;
-  private shadow: ShadowRoot | null = null;
-  private contentEl: HTMLElement | null = null;
-  private _phase: HudPhase = 'finding';
-  private _onNext: () => void;
-  private _onPrev: () => void;
-  private _onCancel: () => void;
-
-  constructor(private journey: JourneyConfig, cb: HudCallbacks) {
-    this._onNext   = cb.onNext;
-    this._onPrev   = cb.onPrev;
-    this._onCancel = cb.onCancel;
+  private _beginPill() {
+    this.pill = new JourneyPill(() => this.cancel());
+    this.pill.mount();
+    this.currentStep = 0;
+    this.status = 'running';
   }
 
-  mount() {
-    if (this.container) return; // already mounted
-    this.container = document.createElement('div');
-    this.container.id = 'smt-journey-hud';
-    this.shadow = this.container.attachShadow({ mode: 'open' });
-
-    const style = document.createElement('style');
-    style.textContent = HUD_STYLES;
-    this.shadow.appendChild(style);
-
-    this.contentEl = document.createElement('div');
-    this.contentEl.className = 'hud';
-    this.shadow.appendChild(this.contentEl);
-
-    document.body.appendChild(this.container);
-
-    // Attach persistent listeners to fixed IDs via event delegation on contentEl
-    this.contentEl.addEventListener('click', (e) => {
-      const id = (e.target as HTMLElement).closest('button')?.id;
-      if (id === 'smt-cancel') { e.stopPropagation(); this._onCancel(); }
-      if (id === 'smt-prev')   { e.stopPropagation(); this._onPrev(); }
-      if (id === 'smt-next')   { e.stopPropagation(); this._onNext(); }
-      if (id === 'smt-done')   { e.stopPropagation(); this._onCancel(); }
-    });
+  private _cancel() {
+    if (this.status === 'idle') return;
+    this.status = 'cancelled';
+    this.detector?.abort();
+    this.detector = null;
+    this._teardownOverlays();
+    this._emit();
   }
 
-  update(current: number, total: number, step: JourneyStep, phase: HudPhase) {
-    if (!this.contentEl) return;
-    this._phase = phase;
-
-    const pct = Math.round(((current - 1) / total) * 100);
-    const phaseLabel: Record<HudPhase, string> = {
-      finding:    '🔍 正在定位…',
-      navigating: '✈️ 飞向目标…',
-      waiting:    '👆 请点击高亮按钮，然后点「下一步」',
-      completed:  '🎉 教程完成！',
-    };
-    const isWaiting   = phase === 'waiting';
-    const isCompleted = phase === 'completed';
-    const isFirst     = current === 1;
-
-    // Use textContent / attribute updates rather than full innerHTML
-    // to avoid detaching and re-attaching the entire subtree.
-    // First render: build the full HTML once; afterwards patch in-place.
-    if (!this.contentEl.querySelector('.hud-inner')) {
-      this.contentEl.innerHTML = `
-        <div class="hud-inner">
-          <div class="header">
-            <span class="journey-title">${this.journey.title}</span>
-            <button class="btn-cancel" id="smt-cancel">✕</button>
-          </div>
-          <div class="progress-bar"><div class="progress-fill" id="smt-prog"></div></div>
-          <div class="step-badge" id="smt-badge"></div>
-          <div class="step-title"  id="smt-title"></div>
-          <div class="step-desc"   id="smt-desc"></div>
-          <div class="phase-label" id="smt-phase"></div>
-          <div class="controls">
-            <button id="smt-prev"  class="btn-prev">← 上一步</button>
-            <button id="smt-next"  class="btn-next">下一步 →</button>
-            <button id="smt-done"  class="btn-done" style="display:none">完成 ✓</button>
-          </div>
-        </div>`;
-    }
-
-    // Patch only the parts that change
-    const q = (sel: string) => this.contentEl!.querySelector(sel) as HTMLElement | null;
-
-    q('#smt-prog')!.style.width  = `${pct}%`;
-    q('#smt-badge')!.textContent = `第 ${current} 步 / 共 ${total} 步`;
-    q('#smt-title')!.textContent = step.title;
-    q('#smt-desc')!.textContent  = step.description;
-
-    const phaseEl = q('#smt-phase')!;
-    phaseEl.textContent  = phaseLabel[phase];
-    phaseEl.className    = `phase-label ${phase}`;
-
-    const prevBtn = q('#smt-prev') as HTMLButtonElement | null;
-    const nextBtn = q('#smt-next') as HTMLButtonElement | null;
-    const doneBtn = q('#smt-done') as HTMLButtonElement | null;
-
-    if (prevBtn) prevBtn.disabled = isFirst || !isWaiting;
-    if (nextBtn) {
-      nextBtn.disabled = !isWaiting;
-      nextBtn.style.display = isCompleted ? 'none' : '';
-    }
-    if (doneBtn) doneBtn.style.display = isCompleted ? '' : 'none';
+  private _teardownOverlays() {
+    this.pill?.unmount();
+    this.pill = null;
+    this.ring?.hide();
+    this.ring = null;
   }
 
-  unmount() {
-    this.container?.remove();
-    this.container = null;
-    this.contentEl = null;
-    this.shadow = null;
+  private _emit() {
+    const s = this.getState();
+    this.onStateChange?.(s);
+    this.eventBus.emit('journey:state', s);
   }
 }
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
-
-// ── Styles ────────────────────────────────────────────────────────────────────
-
-const HUD_STYLES = `
-  .hud {
-    position: fixed;
-    top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 999998;
-    width: 440px;
-    background: white;
-    border-radius: 14px;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.22);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    overflow: hidden;
-    animation: slide-down 0.25s ease;
-    pointer-events: all;
-  }
-  @keyframes slide-down {
-    from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
-    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-  }
-  .header {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .journey-title { font-size: 13px; font-weight: 600; opacity: 0.9; }
-  .btn-cancel {
-    background: rgba(255,255,255,0.2);
-    border: none; color: white;
-    width: 24px; height: 24px;
-    border-radius: 50%; cursor: pointer; font-size: 12px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .btn-cancel:hover { background: rgba(255,255,255,0.35); }
-  .progress-bar { height: 4px; background: #e2e8f0; }
-  .progress-fill { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); transition: width 0.4s ease; }
-  .step-badge { padding: 10px 16px 0; font-size: 11px; font-weight: 700; color: #667eea; text-transform: uppercase; letter-spacing: 0.05em; }
-  .step-title { padding: 4px 16px 0; font-size: 16px; font-weight: 700; color: #1a202c; }
-  .step-desc  { padding: 6px 16px 0; font-size: 13px; color: #4a5568; line-height: 1.5; }
-  .phase-label { padding: 8px 16px; font-size: 12px; font-weight: 600; border-radius: 6px; margin: 8px 16px 0; background: #f7fafc; color: #718096; }
-  .phase-label.waiting    { background: #ebf8ff; color: #2b6cb0; }
-  .phase-label.completed  { background: #f0fff4; color: #276749; }
-  .phase-label.navigating { background: #faf5ff; color: #553c9a; }
-  .controls { display: flex; gap: 8px; padding: 12px 16px 14px; justify-content: flex-end; }
-  .btn-prev, .btn-next, .btn-done {
-    padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
-    cursor: pointer; border: none; transition: all 0.15s;
-  }
-  .btn-prev { background: #edf2f7; color: #4a5568; }
-  .btn-prev:hover:not(:disabled) { background: #e2e8f0; }
-  .btn-next { background: #667eea; color: white; }
-  .btn-next:hover:not(:disabled) { background: #5a67d8; }
-  .btn-done { background: #48bb78; color: white; }
-  .btn-done:hover { background: #38a169; }
-  .btn-prev:disabled, .btn-next:disabled { opacity: 0.4; cursor: not-allowed; }
-`;
