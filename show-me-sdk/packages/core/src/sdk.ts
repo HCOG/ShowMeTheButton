@@ -11,7 +11,18 @@ export interface GuideResult {
   /** Only present for type === 'single' */
   reasoning?: string;
   confidence?: number;
+  /** Element id of the single-match target (present for type === 'single'). */
+  targetId?: string;
+  /**
+   * True when the single match was below the confidence threshold and the
+   * cursor was NOT moved — the caller should confirm with the user before
+   * navigating (e.g. "Is this what you meant?"). Confirm via flyToElement().
+   */
+  needsConfirmation?: boolean;
 }
+
+/** Below this confidence, guide() asks the caller to confirm before flying. */
+const CONFIDENCE_CONFIRM_THRESHOLD = 0.5;
 
 export class ShowMeSDK {
   private config: ShowMeConfig;
@@ -85,36 +96,66 @@ export class ShowMeSDK {
       throw new Error(response.error ?? 'Guide failed');
     }
 
-    if (response.type === 'journey' && response.steps?.length) {
-      const config: JourneyConfig = {
-        id: `guide-${Date.now()}`,
-        title: userQuery,
-        description: userQuery,
-        steps: response.steps,
-      };
+    if (response.type === 'journey') {
       // Cancel any journey already in flight so we never stack two pill HUDs.
       this.journey.cancel();
       if (onJourneyState) this.journey.onState(onJourneyState);
-      // Fire-and-forget — the pill HUD takes over; caller can close its own UI.
-      this.journey.start(config).catch(err =>
+      // Drive the journey iteratively: the backend's up-front steps (if any)
+      // seed the run, then the agent re-plans against the live DOM after each
+      // step — this is what makes multi-page goals work. Fire-and-forget so the
+      // caller (widget) can close its own UI; the pill HUD takes over.
+      //
+      // startIterative mounts the pill synchronously before its first await, so
+      // the pill is already visible by the time this method returns (U1 — no
+      // "nothing happening" gap between the widget closing and the pill).
+      this.journey.startIterative(userQuery, response.steps).catch(err =>
         console.warn('[ShowMeSDK] Journey error:', err),
       );
       return { type: 'journey' };
     }
 
     // Single element
-    if (response.result?.target_id) {
-      const target = this.domScanner.getElementById(response.result.target_id);
+    const result = response.result;
+    const confidence = result?.confidence ?? 0;
+
+    // Low confidence → don't move the cursor; let the caller confirm first (U3).
+    if (result?.target_id && confidence < CONFIDENCE_CONFIRM_THRESHOLD) {
+      return {
+        type: 'single',
+        reasoning: result.reasoning,
+        confidence,
+        targetId: result.target_id,
+        needsConfirmation: true,
+      };
+    }
+
+    if (result?.target_id) {
+      const target = this.domScanner.getElementById(result.target_id);
       if (target) {
         await this.cursorEngine.flyTo(target.element);
-        await this.cursorEngine.hover(target.element, response.result.reasoning);
+        await this.cursorEngine.hover(target.element, result.reasoning);
       }
     }
     return {
       type: 'single',
-      reasoning: response.result?.reasoning,
-      confidence: response.result?.confidence,
+      reasoning: result?.reasoning,
+      confidence,
+      targetId: result?.target_id,
     };
+  }
+
+  /**
+   * Fly the cursor to a scanned element by id and show its reasoning tooltip.
+   * Used to act on a low-confidence guide() result after the user confirms.
+   */
+  async flyToElement(targetId: string, tooltip?: string): Promise<boolean> {
+    if (!this.initialized) await this.init();
+    if (!this.active) this.activate();
+    const target = this.domScanner.getElementById(targetId);
+    if (!target) return false;
+    await this.cursorEngine.flyTo(target.element);
+    await this.cursorEngine.hover(target.element, tooltip ?? '');
+    return true;
   }
 
   async query(userQuery: string): Promise<any> {
@@ -170,8 +211,32 @@ export class ShowMeSDK {
     await this.journey.startSmart(goal);
   }
 
+  /**
+   * Start an ITERATIVE journey: the agent plans one step at a time against the
+   * live DOM, re-scanning after each step. This enables multi-page journeys.
+   *
+   * `seedSteps` (optional) run first to prime a curated workflow before the
+   * agent takes over — handy for "guided tour" buttons that have known steps
+   * but should still adapt to UI changes.
+   */
+  async startIterativeJourney(
+    goal: string,
+    onState?: (state: JourneyState) => void,
+    seedSteps?: JourneyConfig['steps'],
+  ): Promise<void> {
+    if (!this.initialized) await this.init();
+    if (!this.active) this.activate();
+    if (onState) this.journey.onState(onState);
+    await this.journey.startIterative(goal, seedSteps);
+  }
+
   cancelJourney(): void {
     this.journey.cancel();
+  }
+
+  /** Whether a journey is currently planning or running. */
+  get isJourneyActive(): boolean {
+    return this.journey.isActive;
   }
 
   /** Whether voice input is available in this browser. */

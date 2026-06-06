@@ -16,19 +16,24 @@ export class ShowMeService implements OnDestroy {
   private sdk: ShowMeSDK | null = null;
   private routerSub: Subscription;
   private _active = false;
+  private rescanTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Emits when a global hotkey (Alt+V) requests voice input. The widget subscribes. */
   readonly voiceHotkey$ = new Subject<void>();
 
   constructor(private router: Router) {
-    // Re-scan DOM after every navigation (new page = new elements)
+    // Re-scan DOM after every navigation (new page = new elements).
     this.routerSub = this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
       .subscribe(() => {
-        if (this.sdk) {
-          // Small delay so Angular has time to render the new page
-          setTimeout(() => this.rescan(), 300);
-        }
+        if (!this.sdk) return;
+        // A journey re-scans the DOM itself before each step, so skip the
+        // router-triggered rescan while one is active to avoid double-scanning.
+        if (this.sdk.isJourneyActive) return;
+        // Debounce: a single navigation can emit multiple NavigationEnd events
+        // (redirects, guards); coalesce into one scan after the page settles.
+        if (this.rescanTimer) clearTimeout(this.rescanTimer);
+        this.rescanTimer = setTimeout(() => this.rescan(), 300);
       });
   }
 
@@ -139,12 +144,32 @@ export class ShowMeService implements OnDestroy {
     await this.sdk!.startJourney(config, onState);
   }
 
+  /**
+   * Start an iterative, agent-planned journey from a natural-language goal.
+   * `seedSteps` (optional) prime a curated workflow before the agent adapts it.
+   */
+  async startIterativeJourney(
+    goal: string,
+    onState?: (s: JourneyState) => void,
+    seedSteps?: JourneyConfig['steps'],
+  ): Promise<void> {
+    if (!this.sdk) await this.init();
+    await this.sdk!.startIterativeJourney(goal, onState, seedSteps);
+  }
+
+  /** Fly the cursor to a specific element (used to confirm a low-confidence match). */
+  async flyToElement(targetId: string, tooltip?: string): Promise<boolean> {
+    if (!this.sdk) await this.init();
+    return this.sdk!.flyToElement(targetId, tooltip);
+  }
+
   cancelJourney(): void {
     this.sdk?.cancelJourney();
   }
 
   ngOnDestroy(): void {
     this.routerSub.unsubscribe();
+    if (this.rescanTimer) clearTimeout(this.rescanTimer);
     this.sdk?.deactivate();
   }
 }

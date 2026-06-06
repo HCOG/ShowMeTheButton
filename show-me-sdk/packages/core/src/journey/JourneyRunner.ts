@@ -178,10 +178,16 @@ class TargetRing {
   private container: HTMLElement | null = null;
   private shadow: ShadowRoot | null = null;
   private ringEl: HTMLElement | null = null;
+  private labelEl: HTMLElement | null = null;
   private rafId: number | null = null;
   private target: HTMLElement | null = null;
 
-  show(target: HTMLElement): void {
+  /**
+   * Show the ring around `target`. If `label` is provided, a small popover is
+   * rendered just outside the ring (above the element, or below when there is
+   * no room) so the step's hint sits where the user is actually looking (U2).
+   */
+  show(target: HTMLElement, label?: string): void {
     this.target = target;
 
     if (!this.container) {
@@ -207,7 +213,17 @@ class TargetRing {
       this.ringEl.className = 'ring';
       this.shadow.appendChild(this.ringEl);
 
+      this.labelEl = document.createElement('div');
+      this.labelEl.className = 'ring-label';
+      this.shadow.appendChild(this.labelEl);
+
       document.body.appendChild(this.container);
+    }
+
+    if (this.labelEl) {
+      const text = (label ?? '').trim();
+      this.labelEl.textContent = text;
+      this.labelEl.style.display = text ? 'block' : 'none';
     }
 
     this._updatePosition();
@@ -219,15 +235,15 @@ class TargetRing {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
     }
-    if (this.ringEl) {
-      this.ringEl.style.opacity = '0';
-    }
+    if (this.ringEl) this.ringEl.style.opacity = '0';
+    if (this.labelEl) this.labelEl.style.opacity = '0';
     // Remove after fade
     setTimeout(() => {
       this.container?.remove();
       this.container = null;
       this.shadow = null;
       this.ringEl = null;
+      this.labelEl = null;
       this.target = null;
     }, 300);
   }
@@ -236,13 +252,29 @@ class TargetRing {
     if (!this.target || !this.ringEl) return;
     const r = this.target.getBoundingClientRect();
     const pad = 6;
+    const top = r.top - pad;
+    const left = r.left - pad;
+    const width = r.width + pad * 2;
+    const height = r.height + pad * 2;
     Object.assign(this.ringEl.style, {
-      top: `${r.top - pad}px`,
-      left: `${r.left - pad}px`,
-      width: `${r.width + pad * 2}px`,
-      height: `${r.height + pad * 2}px`,
+      top: `${top}px`,
+      left: `${left}px`,
+      width: `${width}px`,
+      height: `${height}px`,
       opacity: '1',
     });
+
+    // Position the label above the ring, or below if it would clip the top.
+    if (this.labelEl && this.labelEl.style.display !== 'none') {
+      const labelH = 34;
+      const placeBelow = top < labelH + 12;
+      this.labelEl.classList.toggle('below', placeBelow);
+      Object.assign(this.labelEl.style, {
+        left: `${left + width / 2}px`,
+        top: placeBelow ? `${top + height + 10}px` : `${top - 10}px`,
+        opacity: '1',
+      });
+    }
   }
 
   private _startTracking() {
@@ -277,6 +309,44 @@ const RING_STYLES = `
         0 0 0 10px rgba(118,75,162,0.2),
         0 0 30px rgba(118,75,162,0.1);
     }
+  }
+
+  .ring-label {
+    position: fixed;
+    transform: translate(-50%, -100%);
+    max-width: 280px;
+    background: rgba(18, 22, 38, 0.95);
+    color: #f0f4ff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12.5px;
+    line-height: 1.4;
+    font-weight: 500;
+    padding: 7px 11px;
+    border-radius: 8px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.3), 0 0 0 1px rgba(102,126,234,0.4);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease, top 0.1s, left 0.1s;
+    white-space: normal;
+    text-align: center;
+    z-index: 1;
+  }
+  /* little caret pointing at the element */
+  .ring-label::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    bottom: -11px;
+    border-top-color: rgba(18, 22, 38, 0.95);
+  }
+  .ring-label.below { transform: translate(-50%, 0); }
+  .ring-label.below::after {
+    bottom: auto;
+    top: -11px;
+    border-top-color: transparent;
+    border-bottom-color: rgba(18, 22, 38, 0.95);
   }
 `;
 
@@ -360,6 +430,11 @@ class JourneyPill {
     `;
   }
 
+  /**
+   * Render the pill for a step. `total === 0` means the total is unknown
+   * (iterative mode) — we then show completed dots plus one pulsing "active"
+   * dot, and the label drops the "/N".
+   */
   update(current: number, total: number, step: JourneyStep, phase: PillPhase): void {
     if (!this.pillEl) return;
 
@@ -371,11 +446,16 @@ class JourneyPill {
       completed:  '🎉 完成！',
     };
 
-    // Build dots
-    const dots = Array.from({ length: total }, (_, i) => {
+    const unknownTotal = total <= 0;
+
+    // Build dots. With an unknown total, show done dots + one active dot.
+    const dotCount = unknownTotal ? current : total;
+    const dots = Array.from({ length: dotCount }, (_, i) => {
       const cls = i < current - 1 ? 'dot done' : i === current - 1 ? 'dot active' : 'dot';
       return `<span class="${cls}"></span>`;
-    }).join('');
+    }).join('') + (unknownTotal ? '<span class="dot pending"></span>' : '');
+
+    const stepLabel = unknownTotal ? `第 ${current} 步` : `${current}/${total}`;
 
     const isWaiting = phase === 'waiting';
     const isCompleted = phase === 'completed';
@@ -383,7 +463,7 @@ class JourneyPill {
 
     this.pillEl.innerHTML = `
       <div class="dots">${dots}</div>
-      <span class="step-label">${current}/${total}</span>
+      <span class="step-label">${stepLabel}</span>
       <span class="divider">·</span>
       <span class="title">${titleText}</span>
       <span class="phase ${phase}">${phaseLabel[phase]}</span>
@@ -438,6 +518,15 @@ const PILL_STYLES = `
   }
   .dot.active  { background: #667eea; box-shadow: 0 0 0 2px rgba(102,126,234,0.35); }
   .dot.done    { background: #48bb78; }
+  .dot.pending {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.25);
+    animation: dot-pending 1.4s ease-in-out infinite;
+  }
+  @keyframes dot-pending {
+    0%, 100% { opacity: 0.3; }
+    50%      { opacity: 0.8; }
+  }
 
   .step-label { font-size: 11px; color: rgba(255,255,255,0.4); flex-shrink: 0; }
   .divider    { color: rgba(255,255,255,0.2); flex-shrink: 0; }
@@ -503,13 +592,16 @@ const PILL_STYLES = `
 // ─────────────────────────────────────────────────────────────────────────────
 // JourneyRunner — orchestrates the guided multi-step journey.
 //
-// Two entry points:
-//   start(config)       — static pre-defined steps (original flow, preserved)
-//   startSmart(goal)    — dynamic: backend plans the steps from the user's goal
+// Three entry points:
+//   start(config)         — static pre-defined steps (original flow, preserved)
+//   startSmart(goal)      — backend plans ALL steps up front from the goal
+//   startIterative(goal)  — backend plans ONE step at a time against the live
+//                           DOM (enables multi-page journeys)
 //
 // Progression between steps is fully automatic:
-//   - A ProgressionDetector listens for clicks on the highlighted element,
-//     URL changes, or the "Done" button in the pill.
+//   - A ProgressionDetector listens for clicks/taps on the highlighted element,
+//     value commits (typing/select), URL changes, significant DOM mutations,
+//     or the "Done" button in the pill.
 //   - No explicit "Next →" button required.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -520,6 +612,10 @@ export class JourneyRunner {
 
   private journey: JourneyConfig | null = null;
   private currentStep = 0;
+  /** Total steps; 0 means unknown (iterative mode). */
+  private totalSteps = 0;
+  /** The step object currently being executed (for getState in iterative mode). */
+  private currentStepObj?: JourneyStep;
   private status: JourneyStatus = 'idle';
   private onStateChange?: (state: JourneyState) => void;
 
@@ -546,9 +642,14 @@ export class JourneyRunner {
     return {
       status: this.status,
       currentStep: this.currentStep,
-      totalSteps: this.journey?.steps.length ?? 0,
-      step: this.journey?.steps[this.currentStep - 1],
+      totalSteps: this.totalSteps,
+      step: this.currentStepObj,
     };
+  }
+
+  /** Whether a journey is currently planning or running. */
+  get isActive(): boolean {
+    return this.status === 'running' || this.status === 'planning';
   }
 
   // ── Public API ──────────────────────────────────────────────────────────────
@@ -558,17 +659,17 @@ export class JourneyRunner {
     this._cancel();
     this.journey = config;
     this._beginPill();
-    await this._runLoop(0);
+    this.totalSteps = config.steps.length;
+    await this._runFixed(config.steps);
   }
 
   /**
-   * Start a SMART journey — the backend agent plans the steps from the goal.
-   * The pill shows a "planning" state until steps are returned.
+   * Start a SMART journey — the backend agent plans ALL steps up front from the
+   * goal, then executes them. Best for single-page goals. For multi-page goals
+   * prefer {@link startIterative}, which re-plans against the live DOM.
    */
   async startSmart(goal: string): Promise<void> {
     this._cancel();
-
-    // Show pill in planning mode while we wait for the agent
     this._beginPill();
     this.pill!.showPlanning();
     this.status = 'planning';
@@ -589,21 +690,89 @@ export class JourneyRunner {
     }
 
     if (this._st() === 'cancelled') return;
-
     if (!steps.length) {
       console.warn('[ShowMeSDK] Agent returned no steps for goal:', goal);
       this._fail('未能为该目标规划步骤');
       return;
     }
 
-    this.journey = {
-      id: `smart-${Date.now()}`,
-      title: goal,
-      description: goal,
-      steps,
-    };
+    this.journey = { id: `smart-${Date.now()}`, title: goal, description: goal, steps };
+    this.totalSteps = steps.length;
+    await this._runFixed(steps);
+  }
 
-    await this._runLoop(0);
+  /**
+   * Start an ITERATIVE journey — the agent decides ONE step at a time. After
+   * each completed step the DOM is re-scanned and the agent is asked for the
+   * next step (or whether the goal is done). This is what makes multi-page
+   * journeys work, since later pages aren't visible when the journey starts.
+   *
+   * `seedSteps` (optional) are executed first before the agent takes over —
+   * useful to prime a curated workflow while still letting the agent adapt /
+   * extend it against the live UI.
+   */
+  async startIterative(goal: string, seedSteps?: JourneyStep[]): Promise<void> {
+    this._cancel();
+    this._beginPill();
+    this.totalSteps = 0; // unknown — pill renders a growing dot trail
+    this.status = 'running';
+
+    const history: Array<{ title: string; description?: string }> = [];
+    const queue: JourneyStep[] = [...(seedSteps ?? [])];
+    const MAX_STEPS = 14;
+    let n = 0;
+
+    while (n < MAX_STEPS) {
+      if (this._st() !== 'running') break;
+
+      let step = queue.shift();
+
+      // No queued step → ask the agent for the next one against the live DOM.
+      if (!step) {
+        this.currentStep = n + 1;
+        this.currentStepObj = { step: n + 1, title: '规划下一步…', description: '', query: '' };
+        this.pill!.update(this.currentStep, 0, this.currentStepObj, 'planning');
+        this._emit();
+
+        await this.domScanner.refresh();
+        const elements = this.domScanner.getElements();
+        const resp = await this.agentClient.nextStep(
+          goal,
+          history,
+          elements.map(e => ({ id: e.id, label: e.label, type: e.type, text: e.metadata.text })),
+        );
+
+        if (this._st() !== 'running') break;
+
+        if (!resp.success) {
+          this._fail(resp.error ? `规划失败：${resp.error}` : '规划失败，请检查 Agent 服务');
+          return;
+        }
+        if (resp.done || !resp.step) {
+          if (n === 0) { this._fail('未能为该目标规划步骤'); return; }
+          this._completeIterative();
+          return;
+        }
+        step = resp.step;
+      }
+
+      n++;
+      this.currentStep = n;
+      this.currentStepObj = step;
+      this._emit();
+
+      await this._executeStep(step, n, 0);
+      if (this._st() !== 'running') break;
+
+      history.push({ title: step.title, description: step.description });
+
+      this.ring?.hide();
+      this.ring = null;
+      await sleep(300);
+    }
+
+    // Reached the safety cap while still running → wrap up gracefully.
+    if (this._st() === 'running') this._completeIterative();
   }
 
   cancel(): void {
@@ -612,86 +781,96 @@ export class JourneyRunner {
 
   // ── Core loop ───────────────────────────────────────────────────────────────
 
-  private async _runLoop(fromIndex: number): Promise<void> {
-    const steps = this.journey!.steps;
+  /** Run a fixed, fully-known list of steps. */
+  private async _runFixed(steps: JourneyStep[]): Promise<void> {
     this.status = 'running';
 
-    for (let i = fromIndex; i < steps.length; i++) {
+    for (let i = 0; i < steps.length; i++) {
       if (this._st() !== 'running') break;
 
       this.currentStep = i + 1;
-      const step = steps[i];
+      this.currentStepObj = steps[i];
       this._emit();
 
-      // ── Phase: finding ─────────────────────────────────────────────────────
-      this.pill!.update(this.currentStep, steps.length, step, 'finding');
-
-      await this.domScanner.refresh();
-      const elements = this.domScanner.getElements();
-
-      let targetEl: HTMLElement | null = null;
-
-      try {
-        const resp = await this.agentClient.query({
-          query: step.query,
-          elements: elements.map(e => ({ id: e.id, label: e.label, type: e.type, text: e.metadata.text })),
-          context: { url: window.location.href, timestamp: Date.now() },
-        });
-        if (resp.success && resp.result?.target_id) {
-          const found = this.domScanner.getElementById(resp.result.target_id);
-          if (found) targetEl = found.element;
-        }
-      } catch (err) {
-        console.warn('[ShowMeSDK] Step agent query failed:', err);
-      }
-
+      await this._executeStep(steps[i], i + 1, steps.length);
       if (this._st() !== 'running') break;
 
-      // ── Phase: navigating ──────────────────────────────────────────────────
-      if (targetEl) {
-        this.pill!.update(this.currentStep, steps.length, step, 'navigating');
-        await this.cursorEngine.flyTo(targetEl);
-
-        // Show pulsing ring around the target
-        if (!this.ring) this.ring = new TargetRing();
-        this.ring.show(targetEl);
-      }
-
-      if (this._st() !== 'running') break;
-
-      // ── Last step: auto-complete once user clicks ──────────────────────────
       if (i === steps.length - 1) {
-        this.pill!.update(this.currentStep, steps.length, step, 'waiting');
-        this.detector = new ProgressionDetector();
-        await this.detector.waitForAction(targetEl);
-        this.detector = null;
-
-        if (this._st() !== 'running') break;
-
+        // Last step → complete.
         this.ring?.hide();
         this.ring = null;
-
         this.status = 'completed';
-        this.pill!.update(this.currentStep, steps.length, step, 'completed');
+        this.pill!.update(this.currentStep, steps.length, steps[i], 'completed');
         this._emit();
         await sleep(1800);
         this._teardownOverlays();
         break;
       }
 
-      // ── Intermediate step: wait for user action, then auto-advance ─────────
-      this.pill!.update(this.currentStep, steps.length, step, 'waiting');
-      this.detector = new ProgressionDetector();
-      await this.detector.waitForAction(targetEl);
-      this.detector = null;
-
-      if (this._st() !== 'running') break;
-
-      // Brief "step done" flash before moving on
+      // Intermediate → brief flash, then advance.
       this.ring?.hide();
       this.ring = null;
       await sleep(300);
     }
+  }
+
+  /**
+   * Execute ONE step: find the element, fly the cursor, ring + label it, then
+   * wait for the user's progression action. Shared by fixed and iterative runs.
+   * Does NOT hide the ring or mark completion — the caller decides what's next.
+   */
+  private async _executeStep(step: JourneyStep, current: number, total: number): Promise<void> {
+    // ── Phase: finding ───────────────────────────────────────────────────────
+    this.pill!.update(current, total, step, 'finding');
+
+    await this.domScanner.refresh();
+    const elements = this.domScanner.getElements();
+
+    let targetEl: HTMLElement | null = null;
+    try {
+      const resp = await this.agentClient.query({
+        query: step.query,
+        elements: elements.map(e => ({ id: e.id, label: e.label, type: e.type, text: e.metadata.text })),
+        context: { url: window.location.href, timestamp: Date.now() },
+      });
+      if (resp.success && resp.result?.target_id) {
+        const found = this.domScanner.getElementById(resp.result.target_id);
+        if (found) targetEl = found.element;
+      }
+    } catch (err) {
+      console.warn('[ShowMeSDK] Step agent query failed:', err);
+    }
+
+    if (this._st() !== 'running') return;
+
+    // ── Phase: navigating ────────────────────────────────────────────────────
+    if (targetEl) {
+      this.pill!.update(current, total, step, 'navigating');
+      await this.cursorEngine.flyTo(targetEl);
+      if (!this.ring) this.ring = new TargetRing();
+      this.ring.show(targetEl, step.hint || step.description); // U2: label near target
+    }
+
+    if (this._st() !== 'running') return;
+
+    // ── Phase: waiting — auto-advance on the user's action ───────────────────
+    this.pill!.update(current, total, step, 'waiting');
+    this.detector = new ProgressionDetector();
+    await this.detector.waitForAction(targetEl);
+    this.detector = null;
+  }
+
+  /** Mark an iterative journey complete and tear down. */
+  private _completeIterative(): void {
+    this.ring?.hide();
+    this.ring = null;
+    this.status = 'completed';
+    const last = this.currentStepObj ?? { step: this.currentStep, title: '完成', description: '', query: '' };
+    this.pill?.update(this.currentStep, 0, last, 'completed');
+    this._emit();
+    const pill = this.pill;
+    setTimeout(() => { pill?.unmount(); }, 1800);
+    this.pill = null;
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -700,6 +879,8 @@ export class JourneyRunner {
     this.pill = new JourneyPill(() => this.cancel());
     this.pill.mount();
     this.currentStep = 0;
+    this.currentStepObj = undefined;
+    this.totalSteps = 0;
     this.status = 'running';
   }
 

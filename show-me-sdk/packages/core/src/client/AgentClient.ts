@@ -14,6 +14,16 @@ export interface GuideResponse {
   latency_ms?: number;
 }
 
+export interface NextStepResponse {
+  success: boolean;
+  done: boolean;
+  /** The next step to perform; absent when done or on error. */
+  step?: JourneyStep;
+  reasoning?: string;
+  error?: string;
+  latency_ms?: number;
+}
+
 export interface TaskStatus {
   task_id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
@@ -129,6 +139,42 @@ export class AgentClient {
     } catch (error) {
       clearTimeout(timeoutId);
       throw error instanceof Error ? error : new Error('planJourney: network error');
+    }
+  }
+
+  /**
+   * Iterative planning — ask the agent for the single NEXT step given the goal,
+   * the steps completed so far, and the CURRENT page's elements. The agent may
+   * signal `done` when the goal is achieved. Returns a structured response
+   * (never throws — network/HTTP errors are reported as { success:false }).
+   */
+  async nextStep(
+    goal: string,
+    history: Array<{ title: string; description?: string }>,
+    elements: Array<{ id: string; label: string; type: string; text?: string }>,
+  ): Promise<NextStepResponse> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    try {
+      const response = await fetch(`${this.endpoint}/api/v1/journey/next-step`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        mode: 'cors',
+        body: JSON.stringify({ goal, history, elements }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const data: NextStepResponse = await response.json();
+      if (data.step) data.step = { ...data.step, step: (history.length + 1) };
+      return data;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      return {
+        success: false,
+        done: true,
+        error: error instanceof Error ? error.message : 'Network error',
+      };
     }
   }
 
