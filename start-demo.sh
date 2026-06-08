@@ -86,6 +86,13 @@ ensure_agent_env() {
   # Need to install. Do it in an isolated venv to avoid PEP 668
   # "externally-managed-environment" errors on Homebrew/system Python.
   if [ ! -x "$AGENT_DIR/.venv/bin/python" ]; then
+    # A leftover .venv whose interpreter no longer resolves (e.g. the Homebrew/
+    # system Python it was built against was upgraded or removed) leaves dangling
+    # symlinks that make `python3 -m venv` fail. Remove it first for a clean build.
+    if [ -e "$AGENT_DIR/.venv" ]; then
+      warn "Existing .venv is broken (its Python interpreter is missing) — recreating"
+      rm -rf "$AGENT_DIR/.venv"
+    fi
     step "Creating Python virtualenv (show-me-agent/.venv)"
     python3 -m venv "$AGENT_DIR/.venv" || die "Failed to create virtualenv"
   fi
