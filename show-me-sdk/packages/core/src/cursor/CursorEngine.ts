@@ -10,6 +10,9 @@ export class CursorEngine {
   private config: Required<CursorConfig>;
   private isVisible = false;
   private currentTarget: HTMLElement | null = null;
+  private isAnimating = false;
+  /** When stuck, cursor stays at destination and ignores mouse movement. */
+  private isStuck = false;
 
   constructor(eventBus: EventBus, config: CursorConfig = {}) {
     this.eventBus = eventBus;
@@ -105,8 +108,8 @@ export class CursorEngine {
   }
 
   private handleMouseMove(event: MouseEvent): void {
-    if (!this.cursorElement || !this.config.followMouse) return;
-    
+    if (!this.cursorElement || !this.config.followMouse || this.isAnimating || this.isStuck) return;
+
     // 跟随鼠标但有小偏移（光标在鼠标右下方）
     this.cursorElement.style.left = `${event.clientX + this.config.offsetX}px`;
     this.cursorElement.style.top = `${event.clientY + this.config.offsetY}px`;
@@ -128,13 +131,25 @@ export class CursorEngine {
     const targetRect = target.getBoundingClientRect();
     const targetX = targetRect.left + targetRect.width / 2;
     const targetY = targetRect.top + targetRect.height / 2;
-    
+
     const startRect = this.cursorElement?.getBoundingClientRect();
     const startX = startRect?.left ?? 0;
     const startY = startRect?.top ?? 0;
-    
-    await this.animate(startX, startY, targetX, targetY, duration);
-    this.currentTarget = target;
+
+    this.isAnimating = true;
+    this.isStuck = false; // Clear any previous stuck state
+    try {
+      await this.animate(startX, startY, targetX, targetY, duration);
+      this.currentTarget = target;
+    } finally {
+      this.isAnimating = false;
+      this.isStuck = true; // Lock cursor at destination
+    }
+  }
+
+  /** Release the stuck state so the cursor resumes following the mouse. */
+  release(): void {
+    this.isStuck = false;
   }
 
   private animate(

@@ -33,6 +33,8 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // Alt+V hotkey (from app shell) → open widget and start listening.
     this.hotkeySub = this.showMe.voiceHotkey$.subscribe(() => this.startVoice());
+    // Expose SDK for testing
+    (window as any).__showMeService = this.showMe;
   }
 
   ngOnDestroy(): void {
