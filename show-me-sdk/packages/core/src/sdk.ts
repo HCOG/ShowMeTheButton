@@ -299,6 +299,11 @@ export class ShowMeSDK {
     this.speech.stop();
   }
 
+  /** Release the cursor from its stuck position so it resumes following the mouse. */
+  releaseCursor(): void {
+    this.cursorEngine.release();
+  }
+
   get isActive(): boolean {
     return this.active;
   }
