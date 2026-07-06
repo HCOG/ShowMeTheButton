@@ -89,6 +89,29 @@
       </div>
       <button class="smt-btn-ghost" (click)="retry()">重试</button>
     </div>
+
+    <!-- Plan overview (centered, post-morph) -->
+    <div *ngIf="state === 'plan-overview'" class="smt-body smt-plan-overview">
+      <div class="smt-plan-header">
+        <span class="smt-plan-title">📋 已为你规划 {{ planSteps.length }} 步</span>
+        <span class="smt-plan-goal">目标：{{ planGoal }}</span>
+      </div>
+      <ol class="smt-step-list">
+        <li *ngFor="let s of planSteps; let i = index" class="smt-step">
+          <span class="smt-step-num">{{ i + 1 }}</span>
+          <div class="smt-step-text">
+            <div class="smt-step-title">{{ s.title }}</div>
+            <div class="smt-step-desc" *ngIf="s.description">{{ s.description }}</div>
+          </div>
+        </li>
+      </ol>
+      <div class="smt-plan-actions">
+        <button class="smt-btn-primary" (click)="startPlannedJourney()">
+          ▶ 开始执行 ({{ planSteps.length }} 步)
+        </button>
+        <button class="smt-btn-ghost" (click)="cancelPlannedJourney()">取消</button>
+      </div>
+    </div>
   </div>
 
 </div>
