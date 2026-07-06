@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "showme-workflow-extractor"
+version = "0.1.0"
+description = "Deterministic SOP and demo-video extraction into ShowMeTheButton workflow drafts."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+sop2workflow = "workflow_extractor.cli_sop:main"
+demo2workflow = "workflow_extractor.cli_demo_video:main"
+
+[tool.setuptools]
+packages = ["workflow_extractor"]
+
+[tool.setuptools.package-data]
+workflow_extractor = ["schemas/*.json"]

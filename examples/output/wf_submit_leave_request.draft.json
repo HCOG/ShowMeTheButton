@@ -1,0 +1,288 @@
+{
+  "quality": {
+    "high_risk_steps": [
+      "step_05"
+    ],
+    "mapped_component_ratio": 1.0,
+    "needs_human_review": true,
+    "overall_confidence": 0.81,
+    "steps_missing_verification": [
+      "step_04"
+    ],
+    "unmapped_components": []
+  },
+  "schema_version": "workflow-draft-v1",
+  "validation_report": {
+    "errors": [],
+    "schema_valid": true
+  },
+  "workflow": {
+    "branches": [
+      {
+        "branch_label": "branch_from_04",
+        "condition": "If leave is longer than five business days, add a comment explaining the plan",
+        "confidence": 0.64,
+        "from_step_id": "step_04",
+        "to_step_id": null,
+        "unresolved_if_ambiguous": true
+      }
+    ],
+    "business_goal": "Allow an employee to request leave and route the request to their manager.",
+    "description": "Allow an employee to request leave and route the request to their manager.",
+    "domain": "hr",
+    "global_risks": [
+      {
+        "reason": "Workflow contains externally visible or approval/submission actions.",
+        "requires_human_review": true,
+        "risk_level": "high"
+      }
+    ],
+    "intent_aliases": [
+      "Submit Leave Request",
+      "submit leave request"
+    ],
+    "prerequisites": [
+      "Employee has remaining leave balance.",
+      "Manager is assigned in the HR profile."
+    ],
+    "source": {
+      "document_path": "examples/sop/leave-request.md",
+      "document_title": "Submit Leave Request",
+      "extracted_at": "2026-01-01T00:00:00+00:00",
+      "extractor_version": "sop-to-workflow-v1"
+    },
+    "steps": [
+      {
+        "action_type": "click",
+        "completion_signal": "Expected UI state is reached.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": "leave.request_nav",
+          "confidence": 0.98,
+          "label_hint": "Leave Requests",
+          "route_hint": "/hr/leave",
+          "status": "mapped"
+        },
+        "confidence": 0.88,
+        "expected_page_or_route": "/hr/leave",
+        "fallback": {
+          "confidence": 0.62,
+          "message": "Show the SOP instruction and ask the user how to proceed if the expected UI state is not reached.",
+          "on_failure": "unknown",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [],
+        "instruction": "Open `/hr/leave` from the HR menu.",
+        "requires_confirmation": false,
+        "risk_level": "low",
+        "source_quote_or_source_span": "Open `/hr/leave` from the HR menu.",
+        "step_id": "step_01",
+        "title": "Open `/hr/leave` from the HR menu",
+        "user_goal": "Open `/hr/leave` from the HR menu",
+        "validation_rule": {
+          "confidence": 0.62,
+          "expected": "expected control/state appears",
+          "inferred": true,
+          "target": "leave.request_nav",
+          "type": "component_visible"
+        }
+      },
+      {
+        "action_type": "select",
+        "completion_signal": "Expected UI state is reached.",
+        "component_ref": {
+          "candidate_component_ids": [
+            "project.create_button"
+          ],
+          "component_id": "leave.request_nav",
+          "confidence": 0.86,
+          "label_hint": "Leave Requests",
+          "route_hint": "/hr/leave",
+          "status": "mapped"
+        },
+        "confidence": 0.88,
+        "expected_page_or_route": null,
+        "fallback": {
+          "confidence": 0.62,
+          "message": "Show the SOP instruction and ask the user how to proceed if the expected UI state is not reached.",
+          "on_failure": "unknown",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [
+          {
+            "confidence": 0.66,
+            "label": "New Leave Request",
+            "required": false
+          }
+        ],
+        "instruction": "Choose \"New Leave Request\".",
+        "requires_confirmation": false,
+        "risk_level": "medium",
+        "source_quote_or_source_span": "Choose \"New Leave Request\".",
+        "step_id": "step_02",
+        "title": "Choose \"New Leave Request\"",
+        "user_goal": "Choose \"New Leave Request\"",
+        "validation_rule": {
+          "confidence": 0.62,
+          "expected": "expected control/state appears",
+          "inferred": true,
+          "target": "leave.request_nav",
+          "type": "component_visible"
+        }
+      },
+      {
+        "action_type": "fill",
+        "completion_signal": "Entered values remain in the target fields and pass validation.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": "leave.request_nav",
+          "confidence": 0.86,
+          "label_hint": "Leave Requests",
+          "route_hint": "/hr/leave",
+          "status": "mapped"
+        },
+        "confidence": 0.88,
+        "expected_page_or_route": null,
+        "fallback": {
+          "confidence": 0.62,
+          "message": "Show the SOP instruction and ask the user how to proceed if the expected UI state is not reached.",
+          "on_failure": "unknown",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [],
+        "instruction": "Select the leave type and enter start date and end date.",
+        "requires_confirmation": false,
+        "risk_level": "medium",
+        "source_quote_or_source_span": "Select the leave type and enter start date and end date.",
+        "step_id": "step_03",
+        "title": "Select the leave type and enter start date and end date",
+        "user_goal": "Select the leave type and enter start date and end date",
+        "validation_rule": {
+          "confidence": 0.68,
+          "expected": "value accepted",
+          "inferred": true,
+          "target": "leave.request_nav",
+          "type": "field_valid"
+        }
+      },
+      {
+        "action_type": "unknown",
+        "completion_signal": "Expected UI state is reached.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": "leave.request_nav",
+          "confidence": 0.86,
+          "label_hint": "Leave Requests",
+          "route_hint": "/hr/leave",
+          "status": "mapped"
+        },
+        "confidence": 0.72,
+        "expected_page_or_route": null,
+        "fallback": {
+          "confidence": 0.62,
+          "message": "Show the SOP instruction and ask the user how to proceed if the expected UI state is not reached.",
+          "on_failure": "unknown",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [],
+        "instruction": "If leave is longer than five business days, add a comment explaining the plan.",
+        "requires_confirmation": false,
+        "risk_level": "low",
+        "source_quote_or_source_span": "If leave is longer than five business days, add a comment explaining the plan.",
+        "step_id": "step_04",
+        "title": "If leave is longer than five business days, add a comment explaining the plan",
+        "user_goal": "If leave is longer than five business days, add a comment explaining the plan",
+        "validation_rule": {
+          "confidence": 0.3,
+          "expected": "",
+          "inferred": true,
+          "target": "",
+          "type": "unknown"
+        }
+      },
+      {
+        "action_type": "submit",
+        "completion_signal": "No validation errors and a success/status confirmation is visible.",
+        "component_ref": {
+          "candidate_component_ids": [
+            "leave.submit_button"
+          ],
+          "component_id": "project.submit_approval_button",
+          "confidence": 0.9,
+          "label_hint": "Submit for Approval",
+          "route_hint": "/projects/new",
+          "status": "mapped"
+        },
+        "confidence": 0.88,
+        "expected_page_or_route": null,
+        "fallback": {
+          "confidence": 0.8,
+          "message": "Stop before retrying the high-risk action and request human confirmation.",
+          "on_failure": "validation_failed",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [],
+        "instruction": "Submit the request to the manager.",
+        "requires_confirmation": true,
+        "risk_level": "high",
+        "source_quote_or_source_span": "Submit the request to the manager.",
+        "step_id": "step_05",
+        "title": "Submit the request to the manager",
+        "user_goal": "Submit the request to the manager",
+        "validation_rule": {
+          "confidence": 0.58,
+          "expected": "submission accepted and no validation errors",
+          "inferred": true,
+          "target": "project.submit_approval_button",
+          "type": "manual_check"
+        }
+      },
+      {
+        "action_type": "verify",
+        "completion_signal": "Expected UI state is reached.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": "leave.request_nav",
+          "confidence": 0.86,
+          "label_hint": "Leave Requests",
+          "route_hint": "/hr/leave",
+          "status": "mapped"
+        },
+        "confidence": 0.88,
+        "expected_page_or_route": null,
+        "fallback": {
+          "confidence": 0.62,
+          "message": "Show the SOP instruction and ask the user how to proceed if the expected UI state is not reached.",
+          "on_failure": "unknown",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [],
+        "instruction": "Verify the request appears in the leave request table.",
+        "requires_confirmation": false,
+        "risk_level": "low",
+        "source_quote_or_source_span": "Verify the request appears in the leave request table.",
+        "step_id": "step_06",
+        "title": "Verify the request appears in the leave request table",
+        "user_goal": "Verify the request appears in the leave request table",
+        "validation_rule": {
+          "confidence": 0.65,
+          "expected": "condition in instruction is true",
+          "inferred": true,
+          "target": "current page",
+          "type": "manual_check"
+        }
+      }
+    ],
+    "target_user_roles": [
+      "employee",
+      "hr",
+      "manager"
+    ],
+    "unresolved_questions": [
+      "What is the exact target step for condition 'If leave is longer than five business days, add a comment explaining the plan'?",
+      "What status or UI signal confirms successful approval submission?"
+    ],
+    "workflow_id": "wf_submit_leave_request",
+    "workflow_name": "Submit Leave Request"
+  }
+}

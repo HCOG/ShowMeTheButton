@@ -1,0 +1,42 @@
+{
+  "events": [
+    {
+      "ts": 0.8,
+      "event": "navigate",
+      "route": "/projects",
+      "label": "Projects"
+    },
+    {
+      "ts": 2.1,
+      "event": "click",
+      "label": "New Project",
+      "route": "/projects"
+    },
+    {
+      "ts": 4.4,
+      "event": "fill",
+      "label": "Project Name",
+      "value": "Apollo Migration",
+      "required": true,
+      "route": "/projects/new"
+    },
+    {
+      "ts": 6.8,
+      "event": "submit",
+      "label": "Submit for Approval",
+      "risk_hint": "submit approval",
+      "route": "/projects/new"
+    },
+    {
+      "ts": 7.4,
+      "event": "toast",
+      "text": "Submitted successfully"
+    },
+    {
+      "ts": 7.8,
+      "event": "status",
+      "label": "Project Status",
+      "value": "Pending Approval"
+    }
+  ]
+}

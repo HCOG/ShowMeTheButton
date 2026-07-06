@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://showmethebutton.local/schemas/workflow-draft-v1.json",
+  "title": "ShowMeTheButton Workflow Draft",
+  "type": "object",
+  "required": ["schema_version", "workflow", "quality", "validation_report"],
+  "properties": {
+    "schema_version": { "const": "workflow-draft-v1" },
+    "workflow": {
+      "type": "object",
+      "required": [
+        "workflow_id",
+        "workflow_name",
+        "description",
+        "business_goal",
+        "domain",
+        "target_user_roles",
+        "intent_aliases",
+        "source",
+        "prerequisites",
+        "steps",
+        "branches",
+        "global_risks",
+        "unresolved_questions"
+      ],
+      "properties": {
+        "workflow_id": { "type": "string" },
+        "workflow_name": { "type": "string" },
+        "description": { "type": "string" },
+        "business_goal": { "type": "string" },
+        "domain": { "type": "string" },
+        "target_user_roles": { "type": "array", "items": { "type": "string" } },
+        "intent_aliases": { "type": "array", "items": { "type": "string" } },
+        "source": {
+          "type": "object",
+          "required": ["document_path", "document_title", "extracted_at", "extractor_version"]
+        },
+        "prerequisites": { "type": "array", "items": { "type": "string" } },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "step_id",
+              "title",
+              "user_goal",
+              "action_type",
+              "instruction",
+              "expected_page_or_route",
+              "component_ref",
+              "input_fields",
+              "validation_rule",
+              "completion_signal",
+              "fallback",
+              "risk_level",
+              "requires_confirmation",
+              "confidence",
+              "source_quote_or_source_span"
+            ],
+            "properties": {
+              "action_type": {
+                "enum": ["navigate", "click", "fill", "select", "upload", "review", "submit", "confirm", "wait", "verify", "ask_user", "handoff", "unknown"]
+              },
+              "risk_level": { "enum": ["low", "medium", "high"] },
+              "requires_confirmation": { "type": "boolean" },
+              "component_ref": {
+                "type": "object",
+                "required": ["status", "component_id", "label_hint", "route_hint", "candidate_component_ids", "confidence"],
+                "properties": {
+                  "status": { "enum": ["mapped", "candidate", "unmapped"] }
+                }
+              }
+            }
+          }
+        },
+        "branches": { "type": "array" },
+        "global_risks": { "type": "array" },
+        "unresolved_questions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "required": [
+        "overall_confidence",
+        "mapped_component_ratio",
+        "steps_missing_verification",
+        "high_risk_steps",
+        "unmapped_components",
+        "needs_human_review"
+      ]
+    },
+    "validation_report": {
+      "type": "object",
+      "required": ["schema_valid", "errors"]
+    }
+  }
+}

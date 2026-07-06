@@ -1,152 +1,342 @@
-<div class="workflow-container">
-  <header class="workflow-header">
-    <h1>🔀 工作流设计器</h1>
-    <div class="header-tabs">
-      <button 
-        class="tab-btn"
-        [class.active]="activeTab === 'design'"
-        (click)="activeTab = 'design'">
-        🎨 设计
-      </button>
-      <button 
-        class="tab-btn"
-        [class.active]="activeTab === 'run'"
-        (click)="activeTab = 'run'">
-        ▶️ 运行
-      </button>
-      <button 
-        class="tab-btn"
-        [class.active]="activeTab === 'history'"
-        (click)="activeTab = 'history'">
-        📜 历史
-      </button>
+<div class="workflow-editor">
+  <header class="editor-header">
+    <div class="title-block">
+      <span class="eyebrow">Workflow Draft Editor</span>
+      <h1>{{ draft.workflow.workflow_name }}</h1>
     </div>
+
     <div class="header-actions">
-      <button class="btn btn-sm" id="btn-undo" (click)="undo()">↩️ 撤销</button>
-      <button class="btn btn-sm" id="btn-redo" (click)="redo()">↪️ 重做</button>
-      <button class="btn btn-sm btn-outline" id="btn-import" (click)="importWorkflow()">📥 导入</button>
-      <button class="btn btn-sm btn-outline" id="btn-export" (click)="exportWorkflow()">📤 导出</button>
-      <button class="btn btn-sm btn-warning" id="btn-validate" (click)="validateWorkflow()">✓ 验证</button>
-      <button class="btn btn-sm btn-primary" id="btn-save" (click)="saveWorkflow()">💾 保存</button>
-      <button class="btn btn-sm btn-success" id="btn-publish" (click)="publishWorkflow()">🚀 发布</button>
+      <button class="icon-button" type="button" title="Load sample" aria-label="Load sample" (click)="loadSample()">S</button>
+      <button class="icon-button" type="button" title="Load saved draft" aria-label="Load saved draft" (click)="loadSaved()">L</button>
+      <button class="icon-button" type="button" title="Validate draft" aria-label="Validate draft" (click)="validateDraft()">V</button>
+      <button class="text-button" type="button" (click)="saveDraft()">Save</button>
+      <button class="text-button primary" type="button" (click)="exportDraft()">Export JSON</button>
     </div>
   </header>
-  
-  <div class="workflow-main">
-    <aside class="toolbar-left">
-      <div class="tool-group">
-        <h3>节点类型</h3>
-        <button class="tool-btn" id="btn-add-start" (click)="addNode()">
-          🟢 开始节点
-        </button>
-        <button class="tool-btn" id="btn-add-task" (click)="addNode()">
-          📝 任务节点
-        </button>
-        <button class="tool-btn" id="btn-add-decision" (click)="addNode()">
-          🔷 判断节点
-        </button>
-        <button class="tool-btn" id="btn-add-end" (click)="addNode()">
-          🔴 结束节点
-        </button>
-        <button class="tool-btn" id="btn-add-subprocess" (click)="addNode()">
-          📦 子流程
-        </button>
-      </div>
-      
-      <div class="tool-group">
-        <h3>工具</h3>
-        <button class="tool-btn" id="btn-zoom-in" (click)="zoomIn()">🔍+</button>
-        <button class="tool-btn" id="btn-zoom-out" (click)="zoomOut()">🔍-</button>
-        <button class="tool-btn" id="btn-fit" (click)="fitToScreen()">⊞</button>
-      </div>
+
+  <section class="status-strip">
+    <div class="metric">
+      <span class="metric-value">{{ draft.workflow.steps.length }}</span>
+      <span class="metric-label">steps</span>
+    </div>
+    <div class="metric">
+      <span class="metric-value">{{ draft.quality.overall_confidence | number: '1.2-2' }}</span>
+      <span class="metric-label">confidence</span>
+    </div>
+    <div class="metric">
+      <span class="metric-value">{{ draft.quality.mapped_component_ratio | percent: '1.0-0' }}</span>
+      <span class="metric-label">mapped</span>
+    </div>
+    <div class="metric warn">
+      <span class="metric-value">{{ draft.quality.high_risk_steps.length }}</span>
+      <span class="metric-label">high risk</span>
+    </div>
+    <div class="save-state" [class.dirty]="dirty">{{ statusMessage }}</div>
+  </section>
+
+  <main class="editor-shell">
+    <aside class="left-pane">
+      <section class="panel compact">
+        <div class="panel-header">
+          <h2>Steps</h2>
+          <button class="icon-button" type="button" title="Add step" aria-label="Add step" (click)="addStep()">+</button>
+        </div>
+
+        <div class="step-list">
+          <button
+            type="button"
+            class="step-row"
+            *ngFor="let step of draft.workflow.steps; let i = index; trackBy: trackStep"
+            [class.active]="selectedStepId === step.step_id"
+            [class.high-risk]="step.risk_level === 'high'"
+            (click)="selectStep(step.step_id)">
+            <span class="step-index">{{ i + 1 }}</span>
+            <span class="step-copy">
+              <strong>{{ step.title }}</strong>
+              <small>{{ step.action_type }} · {{ step.component_ref.status }}</small>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Branches</h2>
+          <button class="icon-button" type="button" title="Add branch" aria-label="Add branch" (click)="addBranch()">+</button>
+        </div>
+
+        <div class="branch-row" *ngFor="let branch of draft.workflow.branches; let i = index">
+          <input
+            class="control"
+            [(ngModel)]="branch.branch_label"
+            (ngModelChange)="markDirty()"
+            aria-label="Branch label" />
+          <textarea
+            class="control"
+            rows="2"
+            [(ngModel)]="branch.condition"
+            (ngModelChange)="markDirty()"
+            aria-label="Branch condition"></textarea>
+          <div class="branch-grid">
+            <select class="control" [(ngModel)]="branch.from_step_id" (ngModelChange)="markDirty()">
+              <option [ngValue]="null">from step</option>
+              <option *ngFor="let step of draft.workflow.steps" [ngValue]="step.step_id">{{ step.step_id }}</option>
+            </select>
+            <select class="control" [(ngModel)]="branch.to_step_id" (ngModelChange)="markDirty()">
+              <option [ngValue]="null">to step</option>
+              <option *ngFor="let step of draft.workflow.steps" [ngValue]="step.step_id">{{ step.step_id }}</option>
+            </select>
+          </div>
+          <label class="check-row">
+            <input type="checkbox" [(ngModel)]="branch.unresolved_if_ambiguous" (ngModelChange)="markDirty()" />
+            unresolved
+          </label>
+          <button class="link-button danger" type="button" (click)="deleteBranch(i)">Delete branch</button>
+        </div>
+      </section>
     </aside>
-    
-    <main class="canvas-area">
-      <div class="canvas-toolbar">
-        <button class="btn btn-sm" id="btn-add-node" (click)="addNode()">➕ 添加节点</button>
-        <button class="btn btn-sm" id="btn-copy" (click)="copyNode(1)">📋 复制</button>
-        <button class="btn btn-sm" id="btn-paste" (click)="pasteNode()">📄 粘贴</button>
-        <button class="btn btn-sm btn-danger" id="btn-delete" (click)="deleteSelected()">🗑️ 删除</button>
-      </div>
-      
-      <div class="workflow-canvas">
-        <div class="node-list">
-          <div 
-            *ngFor="let node of nodes" 
-            class="workflow-node"
-            [class.start]="node.type === 'start'"
-            [class.task]="node.type === 'task'"
-            [class.decision]="node.type === 'decision'"
-            [class.end]="node.type === 'end'"
-            [class.selected]="selectedNode?.id === node.id"
-            (click)="selectNode(node)"
-            [style.left.px]="node.x"
-            [style.top.px]="node.y">
-            
-            <div class="node-header">
-              {{ node.type === 'start' ? '🟢' : node.type === 'end' ? '🔴' : node.type === 'decision' ? '🔷' : '📝' }}
-            </div>
-            <div class="node-label">{{ node.label }}</div>
-            <div class="node-actions">
-              <button class="node-btn" id="btn-edit-{{node.id}}" (click)="editNode(node.id); $event.stopPropagation()">✏️</button>
-              <button class="node-btn" id="btn-copy-{{node.id}}" (click)="copyNode(node.id); $event.stopPropagation()">📋</button>
-              <button class="node-btn" id="btn-delete-{{node.id}}" (click)="deleteNode(node.id); $event.stopPropagation()">🗑️</button>
-            </div>
+
+    <section class="center-pane" *ngIf="selectedStep as step">
+      <section class="panel step-editor">
+        <div class="panel-header">
+          <div>
+            <h2>{{ step.step_id }}</h2>
+            <span class="subtle">{{ step.action_type }} · {{ step.risk_level }}</span>
+          </div>
+          <div class="inline-actions">
+            <button class="icon-button" type="button" title="Move up" aria-label="Move step up" (click)="moveStep(step.step_id, -1)">↑</button>
+            <button class="icon-button" type="button" title="Move down" aria-label="Move step down" (click)="moveStep(step.step_id, 1)">↓</button>
+            <button class="icon-button" type="button" title="Duplicate step" aria-label="Duplicate step" (click)="duplicateStep(step)">D</button>
+            <button class="icon-button danger" type="button" title="Delete step" aria-label="Delete step" (click)="deleteStep(step.step_id)">×</button>
           </div>
         </div>
-        
-        <div class="connections">
-          <div *ngFor="let conn of connections" class="connection-line">
-            <span class="connection-label">{{ conn.label }}</span>
-          </div>
+
+        <div class="form-grid two">
+          <label>
+            <span>Title</span>
+            <input class="control" [(ngModel)]="step.title" (ngModelChange)="markDirty()" />
+          </label>
+          <label>
+            <span>User goal</span>
+            <input class="control" [(ngModel)]="step.user_goal" (ngModelChange)="markDirty()" />
+          </label>
+          <label>
+            <span>Action</span>
+            <select class="control" [(ngModel)]="step.action_type" (ngModelChange)="markDirty()">
+              <option *ngFor="let action of actionTypes" [ngValue]="action">{{ action }}</option>
+            </select>
+          </label>
+          <label>
+            <span>Risk</span>
+            <select class="control" [(ngModel)]="step.risk_level" (ngModelChange)="onRiskChange(step)">
+              <option *ngFor="let risk of riskLevels" [ngValue]="risk">{{ risk }}</option>
+            </select>
+          </label>
         </div>
-      </div>
-    </main>
-    
-    <aside class="panel-right">
-      <div class="panel properties-panel" *ngIf="selectedNode">
-        <h3>⚙️ 节点属性</h3>
-        <div class="property-group">
-          <label>节点名称:</label>
-          <input type="text" [value]="selectedNode.label" class="property-input">
+
+        <label>
+          <span>Instruction</span>
+          <textarea class="control" rows="3" [(ngModel)]="step.instruction" (ngModelChange)="markDirty()"></textarea>
+        </label>
+
+        <div class="form-grid two">
+          <label>
+            <span>Expected page or route</span>
+            <input class="control" [(ngModel)]="step.expected_page_or_route" (ngModelChange)="markDirty()" />
+          </label>
+          <label>
+            <span>Completion signal</span>
+            <input class="control" [(ngModel)]="step.completion_signal" (ngModelChange)="markDirty()" />
+          </label>
         </div>
-        <div class="property-group">
-          <label>节点类型:</label>
-          <input type="text" [value]="selectedNode.type" class="property-input" disabled>
+
+        <label class="check-row confirm-row">
+          <input type="checkbox" [(ngModel)]="step.requires_confirmation" (ngModelChange)="markDirty()" />
+          requires confirmation
+        </label>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Component</h2>
+          <span class="pill" [class.mapped]="step.component_ref.status === 'mapped'">{{ step.component_ref.status }}</span>
         </div>
-        <div class="property-group">
-          <label>描述:</label>
-          <textarea class="property-textarea" rows="3"></textarea>
+
+        <div class="form-grid three">
+          <label>
+            <span>Status</span>
+            <select class="control" [(ngModel)]="step.component_ref.status" (ngModelChange)="onComponentStatusChange(step)">
+              <option *ngFor="let status of componentStatuses" [ngValue]="status">{{ status }}</option>
+            </select>
+          </label>
+          <label>
+            <span>Component ID</span>
+            <input class="control" [(ngModel)]="step.component_ref.component_id" (ngModelChange)="markDirty()" />
+          </label>
+          <label>
+            <span>Confidence</span>
+            <input
+              class="control"
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              [(ngModel)]="step.component_ref.confidence"
+              (ngModelChange)="markDirty()" />
+          </label>
+          <label>
+            <span>Label hint</span>
+            <input class="control" [(ngModel)]="step.component_ref.label_hint" (ngModelChange)="markDirty()" />
+          </label>
+          <label>
+            <span>Route hint</span>
+            <input class="control" [(ngModel)]="step.component_ref.route_hint" (ngModelChange)="markDirty()" />
+          </label>
+          <label>
+            <span>Step confidence</span>
+            <input class="control" type="number" min="0" max="1" step="0.01" [(ngModel)]="step.confidence" (ngModelChange)="markDirty()" />
+          </label>
         </div>
-        <button class="btn btn-sm btn-primary btn-block" id="btn-apply-changes">✓ 应用更改</button>
-      </div>
-      
-      <div class="panel properties-panel" *ngIf="!selectedNode">
-        <h3>⚙️ 节点属性</h3>
-        <p class="placeholder-text">请选择一个节点查看属性</p>
-      </div>
-      
-      <div class="panel">
-        <h3>📋 工作流设置</h3>
-        <div class="property-group">
-          <label>工作流名称:</label>
-          <input type="text" value="审批流程" class="property-input">
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Validation And Recovery</h2>
         </div>
-        <div class="property-group">
-          <label>版本:</label>
-          <input type="text" value="v1.0" class="property-input" disabled>
+
+        <div class="form-grid three">
+          <label>
+            <span>Validation type</span>
+            <select class="control" [(ngModel)]="step.validation_rule.type" (ngModelChange)="markDirty()">
+              <option *ngFor="let type of validationTypes" [ngValue]="type">{{ type }}</option>
+            </select>
+          </label>
+          <label>
+            <span>Target</span>
+            <input class="control" [(ngModel)]="step.validation_rule.target" (ngModelChange)="markDirty()" />
+          </label>
+          <label>
+            <span>Expected</span>
+            <input class="control" [(ngModel)]="step.validation_rule.expected" (ngModelChange)="markDirty()" />
+          </label>
         </div>
-        <div class="property-group">
-          <label>状态:</label>
-          <span class="status-badge">草稿</span>
+
+        <label class="check-row">
+          <input type="checkbox" [(ngModel)]="step.validation_rule.inferred" (ngModelChange)="markDirty()" />
+          inferred validation
+        </label>
+
+        <div class="form-grid two">
+          <label>
+            <span>Failure</span>
+            <input class="control" [(ngModel)]="step.fallback.on_failure" (ngModelChange)="markDirty()" />
+          </label>
+          <label>
+            <span>Recovery</span>
+            <input class="control" [(ngModel)]="step.fallback.recovery_action" (ngModelChange)="markDirty()" />
+          </label>
         </div>
-      </div>
+
+        <label>
+          <span>Fallback message</span>
+          <textarea class="control" rows="3" [(ngModel)]="step.fallback.message" (ngModelChange)="markDirty()"></textarea>
+        </label>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Input Fields</h2>
+          <button class="icon-button" type="button" title="Add field" aria-label="Add field" (click)="addInputField(step)">+</button>
+        </div>
+
+        <div class="field-row" *ngFor="let field of step.input_fields; let i = index">
+          <input class="control" [(ngModel)]="field.label" (ngModelChange)="markDirty()" aria-label="Field label" />
+          <label class="check-row">
+            <input type="checkbox" [(ngModel)]="field.required" (ngModelChange)="markDirty()" />
+            required
+          </label>
+          <input
+            class="control narrow"
+            type="number"
+            min="0"
+            max="1"
+            step="0.01"
+            [(ngModel)]="field.confidence"
+            (ngModelChange)="markDirty()"
+            aria-label="Field confidence" />
+          <button class="icon-button danger" type="button" title="Delete field" aria-label="Delete field" (click)="deleteInputField(step, i)">×</button>
+        </div>
+      </section>
+    </section>
+
+    <aside class="right-pane">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Workflow</h2>
+        </div>
+        <label>
+          <span>ID</span>
+          <input class="control" [(ngModel)]="draft.workflow.workflow_id" (ngModelChange)="markDirty()" />
+        </label>
+        <label>
+          <span>Name</span>
+          <input class="control" [(ngModel)]="draft.workflow.workflow_name" (ngModelChange)="markDirty()" />
+        </label>
+        <label>
+          <span>Domain</span>
+          <input class="control" [(ngModel)]="draft.workflow.domain" (ngModelChange)="markDirty()" />
+        </label>
+        <label>
+          <span>Business goal</span>
+          <textarea class="control" rows="3" [(ngModel)]="draft.workflow.business_goal" (ngModelChange)="markDirty()"></textarea>
+        </label>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Review Queue</h2>
+          <span class="pill warn">{{ draft.workflow.unresolved_questions.length }}</span>
+        </div>
+        <label>
+          <span>Prerequisites</span>
+          <textarea class="control mono" rows="4" [(ngModel)]="prerequisitesText"></textarea>
+        </label>
+        <label>
+          <span>Intent aliases</span>
+          <textarea class="control mono" rows="4" [(ngModel)]="aliasesText"></textarea>
+        </label>
+        <label>
+          <span>Unresolved questions</span>
+          <textarea class="control mono" rows="5" [(ngModel)]="unresolvedText"></textarea>
+        </label>
+      </section>
+
+      <section class="panel import-panel">
+        <div class="panel-header">
+          <h2>JSON</h2>
+          <button class="text-button" type="button" (click)="importDraft()">Import</button>
+        </div>
+        <textarea
+          class="control mono json-box"
+          rows="7"
+          [(ngModel)]="importText"
+          placeholder="Paste workflow-draft-v1 JSON"></textarea>
+      </section>
+
+      <section class="panel validation-panel" [class.invalid]="validationErrors.length">
+        <div class="panel-header">
+          <h2>Validation</h2>
+          <span class="pill" [class.mapped]="!validationErrors.length">
+            {{ validationErrors.length ? 'issues' : 'valid' }}
+          </span>
+        </div>
+        <ul *ngIf="validationErrors.length; else validState">
+          <li *ngFor="let error of validationErrors">{{ error }}</li>
+        </ul>
+        <ng-template #validState>
+          <p class="subtle">Schema checks passed locally.</p>
+        </ng-template>
+      </section>
     </aside>
-  </div>
-  
-  <footer class="workflow-footer">
-    <button class="btn btn-sm" id="btn-help">❓ 帮助</button>
-    <button class="btn btn-sm" id="btn-shortcuts">⌨️ 快捷键</button>
-    <button class="btn btn-sm" id="btn-about">ℹ️ 关于</button>
-  </footer>
+  </main>
 </div>

@@ -1,0 +1,226 @@
+{
+  "quality": {
+    "high_risk_steps": [
+      "step_04"
+    ],
+    "mapped_component_ratio": 1.0,
+    "needs_human_review": true,
+    "overall_confidence": 0.95,
+    "steps_missing_verification": [],
+    "unmapped_components": []
+  },
+  "schema_version": "workflow-draft-v1",
+  "validation_report": {
+    "errors": [],
+    "schema_valid": true
+  },
+  "workflow": {
+    "branches": [
+      {
+        "branch_label": "video_branch_01",
+        "condition": "If the budget is over 10000, the requester should attach justification before submission",
+        "confidence": 0.58,
+        "from_step_id": "step_01",
+        "to_step_id": null,
+        "unresolved_if_ambiguous": true
+      },
+      {
+        "branch_label": "video_branch_02",
+        "condition": "After successful submission, the project status should become Pending Approval",
+        "confidence": 0.58,
+        "from_step_id": "step_02",
+        "to_step_id": null,
+        "unresolved_if_ambiguous": true
+      }
+    ],
+    "business_goal": "This demo shows a requester creating a project and sending it to a manager for approval.",
+    "description": "This demo shows a requester creating a project and sending it to a manager for approval.",
+    "domain": "project_management",
+    "global_risks": [
+      {
+        "reason": "Workflow contains externally visible or approval/submission actions.",
+        "requires_human_review": true,
+        "risk_level": "high"
+      }
+    ],
+    "intent_aliases": [
+      "Create Project and Submit for Approval",
+      "create project and submit for approval"
+    ],
+    "prerequisites": [
+      "The requester is signed in.",
+      "The requester has project creation permission."
+    ],
+    "source": {
+      "base_text_extractor_version": "sop-to-workflow-v1",
+      "document_path": "examples/demo-video/create-project-demo.mp4",
+      "document_title": "Create Project and Submit for Approval",
+      "event_trace_available": true,
+      "extracted_at": "2026-01-01T00:00:00+00:00",
+      "extractor_version": "demo-video-to-workflow-v1",
+      "source_type": "demo_video",
+      "transcript_available": true
+    },
+    "steps": [
+      {
+        "action_type": "navigate",
+        "completion_signal": "Expected page or route is active.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": "project.nav",
+          "confidence": 0.94,
+          "label_hint": "Projects",
+          "route_hint": "/projects",
+          "status": "mapped"
+        },
+        "confidence": 0.94,
+        "expected_page_or_route": "/projects",
+        "fallback": {
+          "confidence": 0.62,
+          "message": "Show the demonstrated action and ask the user how to proceed if the UI state diverges.",
+          "on_failure": "unknown",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [],
+        "instruction": "Navigate to /projects.",
+        "requires_confirmation": false,
+        "risk_level": "low",
+        "source_quote_or_source_span": "ts=0.8; event=navigate; label=Projects; route=/projects",
+        "step_id": "step_01",
+        "title": "Navigate Projects",
+        "user_goal": "Navigate Projects",
+        "validation_rule": {
+          "confidence": 0.86,
+          "expected": "Submitted successfully",
+          "inferred": false,
+          "target": "toast",
+          "type": "toast_visible"
+        }
+      },
+      {
+        "action_type": "click",
+        "completion_signal": "Expected UI state is reached.",
+        "component_ref": {
+          "candidate_component_ids": [
+            "project.nav"
+          ],
+          "component_id": "project.create_button",
+          "confidence": 0.98,
+          "label_hint": "New Project",
+          "route_hint": "/projects",
+          "status": "mapped"
+        },
+        "confidence": 0.94,
+        "expected_page_or_route": "/projects",
+        "fallback": {
+          "confidence": 0.62,
+          "message": "Show the demonstrated action and ask the user how to proceed if the UI state diverges.",
+          "on_failure": "unknown",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [],
+        "instruction": "Click New Project.",
+        "requires_confirmation": false,
+        "risk_level": "low",
+        "source_quote_or_source_span": "ts=2.1; event=click; label=New Project; route=/projects",
+        "step_id": "step_02",
+        "title": "Click New Project",
+        "user_goal": "Click New Project",
+        "validation_rule": {
+          "confidence": 0.86,
+          "expected": "Submitted successfully",
+          "inferred": false,
+          "target": "toast",
+          "type": "toast_visible"
+        }
+      },
+      {
+        "action_type": "fill",
+        "completion_signal": "Entered values remain in the target fields and pass validation.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": "project.name_input",
+          "confidence": 0.98,
+          "label_hint": "Project Name",
+          "route_hint": "/projects/new",
+          "status": "mapped"
+        },
+        "confidence": 0.94,
+        "expected_page_or_route": "/projects/new",
+        "fallback": {
+          "confidence": 0.62,
+          "message": "Show the demonstrated action and ask the user how to proceed if the UI state diverges.",
+          "on_failure": "unknown",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [
+          {
+            "confidence": 0.78,
+            "label": "Project Name",
+            "required": true
+          }
+        ],
+        "instruction": "Fill Project Name with the demonstrated value.",
+        "requires_confirmation": false,
+        "risk_level": "medium",
+        "source_quote_or_source_span": "ts=4.4; event=fill; label=Project Name; route=/projects/new",
+        "step_id": "step_03",
+        "title": "Fill Project Name",
+        "user_goal": "Fill Project Name",
+        "validation_rule": {
+          "confidence": 0.86,
+          "expected": "Submitted successfully",
+          "inferred": false,
+          "target": "toast",
+          "type": "toast_visible"
+        }
+      },
+      {
+        "action_type": "submit",
+        "completion_signal": "No validation errors and a success/status confirmation is visible.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": "project.submit_approval_button",
+          "confidence": 0.98,
+          "label_hint": "Submit for Approval",
+          "route_hint": "/projects/new",
+          "status": "mapped"
+        },
+        "confidence": 0.94,
+        "expected_page_or_route": "/projects/new",
+        "fallback": {
+          "confidence": 0.8,
+          "message": "Stop before repeating the high-risk video action and request human confirmation.",
+          "on_failure": "validation_failed",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [],
+        "instruction": "Submit using Submit for Approval.",
+        "requires_confirmation": true,
+        "risk_level": "high",
+        "source_quote_or_source_span": "ts=6.8; event=submit; label=Submit for Approval; route=/projects/new",
+        "step_id": "step_04",
+        "title": "Submit Submit for Approval",
+        "user_goal": "Submit Submit for Approval",
+        "validation_rule": {
+          "confidence": 0.86,
+          "expected": "Submitted successfully",
+          "inferred": false,
+          "target": "toast",
+          "type": "toast_visible"
+        }
+      }
+    ],
+    "target_user_roles": [
+      "manager",
+      "requester"
+    ],
+    "unresolved_questions": [
+      "The video file path was recorded as source metadata, but the file was not found locally.",
+      "What is the exact target step for video condition 'After successful submission, the project status should become Pending Approval'?",
+      "What is the exact target step for video condition 'If the budget is over 10000, the requester should attach justification before submission'?"
+    ],
+    "workflow_id": "wf_create_project_and_submit_for_approval",
+    "workflow_name": "Create Project and Submit for Approval"
+  }
+}

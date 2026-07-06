@@ -1,0 +1,319 @@
+{
+  "quality": {
+    "high_risk_steps": [
+      "step_06"
+    ],
+    "mapped_component_ratio": 0.67,
+    "needs_human_review": true,
+    "overall_confidence": 0.69,
+    "steps_missing_verification": [],
+    "unmapped_components": [
+      {
+        "label_hint": "",
+        "step_id": "step_04"
+      },
+      {
+        "label_hint": "",
+        "step_id": "step_05"
+      }
+    ]
+  },
+  "schema_version": "workflow-draft-v1",
+  "validation_report": {
+    "errors": [],
+    "schema_valid": true
+  },
+  "workflow": {
+    "branches": [
+      {
+        "branch_label": "branch_from_04",
+        "condition": "If the project budget is over 10000, attach the budget justification document",
+        "confidence": 0.64,
+        "from_step_id": "step_04",
+        "to_step_id": null,
+        "unresolved_if_ambiguous": true
+      },
+      {
+        "branch_label": "branch_from_06",
+        "condition": "After successful submission, the status should become \"Pending Approval\"",
+        "confidence": 0.64,
+        "from_step_id": "step_06",
+        "to_step_id": null,
+        "unresolved_if_ambiguous": true
+      }
+    ],
+    "business_goal": "Create a new project record and send it to the manager for approval.",
+    "description": "Create a new project record and send it to the manager for approval.",
+    "domain": "project_management",
+    "global_risks": [
+      {
+        "reason": "Workflow contains externally visible or approval/submission actions.",
+        "requires_human_review": true,
+        "risk_level": "high"
+      }
+    ],
+    "intent_aliases": [
+      "Create Project and Submit for Approval",
+      "create project and submit for approval"
+    ],
+    "prerequisites": [
+      "User is signed in.",
+      "User has requester permission.",
+      "Required budget code is available."
+    ],
+    "source": {
+      "document_path": "examples/sop/create-project-approval.md",
+      "document_title": "Create Project and Submit for Approval",
+      "extracted_at": "2026-01-01T00:00:00+00:00",
+      "extractor_version": "sop-to-workflow-v1"
+    },
+    "steps": [
+      {
+        "action_type": "navigate",
+        "completion_signal": "Expected page or route is active.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": "project.nav",
+          "confidence": 0.94,
+          "label_hint": "Projects",
+          "route_hint": "/projects",
+          "status": "mapped"
+        },
+        "confidence": 0.88,
+        "expected_page_or_route": "/projects",
+        "fallback": {
+          "confidence": 0.62,
+          "message": "Show the SOP instruction and ask the user how to proceed if the expected UI state is not reached.",
+          "on_failure": "unknown",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [],
+        "instruction": "Go to `/projects` and open the Projects page.",
+        "requires_confirmation": false,
+        "risk_level": "low",
+        "source_quote_or_source_span": "Go to `/projects` and open the Projects page.",
+        "step_id": "step_01",
+        "title": "Go to `/projects` and open the Projects page",
+        "user_goal": "Go to `/projects` and open the Projects page",
+        "validation_rule": {
+          "confidence": 0.72,
+          "expected": "/projects",
+          "inferred": true,
+          "target": "/projects",
+          "type": "route_changed"
+        }
+      },
+      {
+        "action_type": "click",
+        "completion_signal": "Expected UI state is reached.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": "project.create_button",
+          "confidence": 0.9,
+          "label_hint": "New Project",
+          "route_hint": "/projects",
+          "status": "mapped"
+        },
+        "confidence": 0.88,
+        "expected_page_or_route": null,
+        "fallback": {
+          "confidence": 0.62,
+          "message": "Show the SOP instruction and ask the user how to proceed if the expected UI state is not reached.",
+          "on_failure": "unknown",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [
+          {
+            "confidence": 0.66,
+            "label": "New Project",
+            "required": false
+          }
+        ],
+        "instruction": "Click \"New Project\" to start a project request.",
+        "requires_confirmation": false,
+        "risk_level": "low",
+        "source_quote_or_source_span": "Click \"New Project\" to start a project request.",
+        "step_id": "step_02",
+        "title": "Click \"New Project\" to start a project request",
+        "user_goal": "Click \"New Project\" to start a project request",
+        "validation_rule": {
+          "confidence": 0.62,
+          "expected": "expected control/state appears",
+          "inferred": true,
+          "target": "project.create_button",
+          "type": "component_visible"
+        }
+      },
+      {
+        "action_type": "fill",
+        "completion_signal": "Entered values remain in the target fields and pass validation.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": "project.name_input",
+          "confidence": 0.9,
+          "label_hint": "Project Name",
+          "route_hint": "/projects/new",
+          "status": "mapped"
+        },
+        "confidence": 0.88,
+        "expected_page_or_route": null,
+        "fallback": {
+          "confidence": 0.76,
+          "message": "Highlight missing required fields and ask the user to complete them.",
+          "on_failure": "required_field_missing",
+          "recovery_action": "highlight_field"
+        },
+        "input_fields": [
+          {
+            "confidence": 0.66,
+            "label": "Project Name",
+            "required": true
+          }
+        ],
+        "instruction": "Fill the required \"Project Name\" and budget code fields.",
+        "requires_confirmation": false,
+        "risk_level": "medium",
+        "source_quote_or_source_span": "Fill the required \"Project Name\" and budget code fields.",
+        "step_id": "step_03",
+        "title": "Fill the required \"Project Name\" and budget code fields",
+        "user_goal": "Fill the required \"Project Name\" and budget code fields",
+        "validation_rule": {
+          "confidence": 0.68,
+          "expected": "value accepted",
+          "inferred": true,
+          "target": "project.name_input",
+          "type": "field_valid"
+        }
+      },
+      {
+        "action_type": "upload",
+        "completion_signal": "Expected UI state is reached.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": null,
+          "confidence": 0.0,
+          "label_hint": "",
+          "route_hint": null,
+          "status": "unmapped"
+        },
+        "confidence": 0.58,
+        "expected_page_or_route": null,
+        "fallback": {
+          "confidence": 0.82,
+          "message": "Component mapping is unresolved; ask the user to identify the UI control before execution.",
+          "on_failure": "component_not_found",
+          "recovery_action": "ask_user"
+        },
+        "input_fields": [],
+        "instruction": "If the project budget is over 10000, attach the budget justification document.",
+        "requires_confirmation": false,
+        "risk_level": "medium",
+        "source_quote_or_source_span": "If the project budget is over 10000, attach the budget justification document.",
+        "step_id": "step_04",
+        "title": "If the project budget is over 10000, attach the budget justification document",
+        "user_goal": "If the project budget is over 10000, attach the budget justification document",
+        "validation_rule": {
+          "confidence": 0.62,
+          "expected": "expected control/state appears",
+          "inferred": true,
+          "target": "next UI state",
+          "type": "component_visible"
+        }
+      },
+      {
+        "action_type": "review",
+        "completion_signal": "Expected UI state is reached.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": null,
+          "confidence": 0.0,
+          "label_hint": "",
+          "route_hint": null,
+          "status": "unmapped"
+        },
+        "confidence": 0.66,
+        "expected_page_or_route": null,
+        "fallback": {
+          "confidence": 0.82,
+          "message": "Component mapping is unresolved; ask the user to identify the UI control before execution.",
+          "on_failure": "component_not_found",
+          "recovery_action": "ask_user"
+        },
+        "input_fields": [],
+        "instruction": "Review all project details for accuracy.",
+        "requires_confirmation": false,
+        "risk_level": "low",
+        "source_quote_or_source_span": "Review all project details for accuracy.",
+        "step_id": "step_05",
+        "title": "Review all project details for accuracy",
+        "user_goal": "Review all project details for accuracy",
+        "validation_rule": {
+          "confidence": 0.65,
+          "expected": "condition in instruction is true",
+          "inferred": true,
+          "target": "current page",
+          "type": "manual_check"
+        }
+      },
+      {
+        "action_type": "submit",
+        "completion_signal": "No validation errors and a success/status confirmation is visible.",
+        "component_ref": {
+          "candidate_component_ids": [],
+          "component_id": "project.submit_approval_button",
+          "confidence": 0.9,
+          "label_hint": "Submit for Approval",
+          "route_hint": "/projects/new",
+          "status": "mapped"
+        },
+        "confidence": 0.88,
+        "expected_page_or_route": null,
+        "fallback": {
+          "confidence": 0.8,
+          "message": "Stop before retrying the high-risk action and request human confirmation.",
+          "on_failure": "validation_failed",
+          "recovery_action": "show_manual_instruction"
+        },
+        "input_fields": [
+          {
+            "confidence": 0.66,
+            "label": "Submit for Approval",
+            "required": false
+          },
+          {
+            "confidence": 0.66,
+            "label": "Pending Approval",
+            "required": false
+          }
+        ],
+        "instruction": "Click \"Submit for Approval\". After successful submission, the status should become \"Pending Approval\".",
+        "requires_confirmation": true,
+        "risk_level": "high",
+        "source_quote_or_source_span": "Click \"Submit for Approval\". After successful submission, the status should become \"Pending Approval\".",
+        "step_id": "step_06",
+        "title": "Click \"Submit for Approval\"",
+        "user_goal": "Click \"Submit for Approval\"",
+        "validation_rule": {
+          "confidence": 0.76,
+          "expected": "success",
+          "inferred": false,
+          "target": "success_toast",
+          "type": "toast_visible"
+        }
+      }
+    ],
+    "target_user_roles": [
+      "manager",
+      "requester"
+    ],
+    "unresolved_questions": [
+      "Is the attachment mandatory or optional?",
+      "What is the exact target step for condition 'After successful submission, the status should become \"Pending Approval\"'?",
+      "What is the exact target step for condition 'If the project budget is over 10000, attach the budget justification document'?",
+      "What status or UI signal confirms successful approval submission?",
+      "Which UI component corresponds to 'If the project budget is over 10000, attach the budget justification document'?"
+    ],
+    "workflow_id": "wf_create_project_and_submit_for_approval",
+    "workflow_name": "Create Project and Submit for Approval"
+  }
+}

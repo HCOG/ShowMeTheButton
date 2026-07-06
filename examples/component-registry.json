@@ -1,0 +1,52 @@
+{
+  "components": [
+    {
+      "component_id": "project.nav",
+      "label": "Projects",
+      "aliases": ["Projects", "Project list", "项目"],
+      "route": "/projects",
+      "type": "link",
+      "risk_level": "low"
+    },
+    {
+      "component_id": "project.create_button",
+      "label": "New Project",
+      "aliases": ["Create Project", "New Project", "New", "新建项目", "新增项目"],
+      "route": "/projects",
+      "type": "button",
+      "risk_level": "low"
+    },
+    {
+      "component_id": "project.name_input",
+      "label": "Project Name",
+      "aliases": ["Project Name", "Name"],
+      "route": "/projects/new",
+      "type": "input",
+      "risk_level": "medium"
+    },
+    {
+      "component_id": "project.submit_approval_button",
+      "label": "Submit for Approval",
+      "aliases": ["Submit for Approval", "Request Approval", "Submit"],
+      "route": "/projects/new",
+      "type": "button",
+      "risk_level": "high"
+    },
+    {
+      "component_id": "leave.request_nav",
+      "label": "Leave Requests",
+      "aliases": ["Leave Requests", "Time Off", "Leave"],
+      "route": "/hr/leave",
+      "type": "link",
+      "risk_level": "low"
+    },
+    {
+      "component_id": "leave.submit_button",
+      "label": "Submit Leave Request",
+      "aliases": ["Submit Leave Request", "Submit Request"],
+      "route": "/hr/leave/new",
+      "type": "button",
+      "risk_level": "high"
+    }
+  ]
+}
