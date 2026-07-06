@@ -3,7 +3,7 @@ import { DOMScanner } from './scanner/DOMScanner';
 import { CursorEngine } from './cursor/CursorEngine';
 import { TargetRing } from './cursor/TargetRing';
 import { AgentClient } from './client/AgentClient';
-import { JourneyRunner, JourneyConfig, JourneyState } from './journey/JourneyRunner';
+import { JourneyRunner, JourneyConfig, JourneyState, JourneyStep } from './journey/JourneyRunner';
 import { SpeechInput } from './voice/SpeechInput';
 import { ShowMeConfig } from './types';
 
@@ -244,6 +244,56 @@ export class ShowMeSDK {
     if (!this.active) this.activate();
     if (onState) this.journey.onState(onState);
     await this.journey.startSmart(goal);
+  }
+
+  /**
+   * Plan a multi-step journey and SHOW the user the planned steps BEFORE executing.
+   * The overview panel mounts at the bottom of the page; the caller must then invoke
+   * {@link startPreviewedJourney} (typically from a "Start" button) to begin.
+   *
+   * Returns the planned steps (or null on planning failure / 0 steps). The same
+   * array is also exposed via the `journey:state` event's `plan` field once the
+   * status reaches `'previewing'`.
+   */
+  async previewJourney(
+    goal: string,
+    onState?: (state: JourneyState) => void,
+  ): Promise<JourneyStep[] | null> {
+    if (!this.initialized) await this.init();
+    if (!this.active) this.activate();
+    if (onState) this.journey.onState(onState);
+    return this.journey.startSmartWithPreview(goal);
+  }
+
+  /**
+   * Pure data API: ask the agent to plan steps for `goal` and return them
+   * WITHOUT mounting any UI / changing any state.
+   *
+   * Use this when the caller wants to render its own plan-overview panel
+   * (e.g. morphing its widget UI into a centered overview) before invoking
+   * {@link startIterativeJourney} on user confirmation. The companion UI
+   * {@link previewJourney} remains the right choice when the caller is happy
+   * with the SDK's body-mounted JourneyOverview panel.
+   *
+   * Returns `[]` when the agent plans nothing. Throws on transport errors.
+   */
+  async planJourney(goal: string): Promise<JourneyStep[]> {
+    if (!this.initialized) await this.init();
+    await this.domScanner.refresh();
+    const elements = this.domScanner.getElements();
+    return this.agentClient.planJourney(
+      goal,
+      elements.map(e => ({ id: e.id, label: e.label, type: e.type, text: e.metadata.text })),
+    );
+  }
+
+  /**
+   * Begin executing a journey that was previously planned via
+   * {@link previewJourney}. No-op if the runner is not currently in the
+   * `previewing` state (defends against double-clicks).
+   */
+  async startPreviewedJourney(): Promise<void> {
+    await this.journey.startPreviewedJourney();
   }
 
   /**

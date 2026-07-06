@@ -3,6 +3,7 @@ import { CursorEngine } from '../cursor/CursorEngine';
 import { TargetRing } from '../cursor/TargetRing';
 import { AgentClient } from '../client/AgentClient';
 import { EventBus } from '../bus/EventBus';
+import { JourneyOverview } from './JourneyOverview';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -23,13 +24,15 @@ export interface JourneyConfig {
   steps: JourneyStep[];
 }
 
-export type JourneyStatus = 'idle' | 'planning' | 'running' | 'completed' | 'cancelled' | 'error';
+export type JourneyStatus = 'idle' | 'planning' | 'previewing' | 'running' | 'completed' | 'cancelled' | 'error';
 
 export interface JourneyState {
   status: JourneyStatus;
   currentStep: number;   // 1-based
   totalSteps: number;
   step?: JourneyStep;
+  /** Populated when status === 'previewing' — full list of planned steps. */
+  plan?: JourneyStep[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,7 +47,7 @@ export interface JourneyState {
 type ProgressionReason = 'clicked' | 'navigated' | 'input' | 'mutated' | 'done';
 
 /** Ids of the SDK's own overlay hosts — mutations within these are ignored. */
-const SDK_OVERLAY_IDS = ['show-me-sdk-cursor', 'smt-target-ring', 'smt-journey-pill'];
+const SDK_OVERLAY_IDS = ['show-me-sdk-cursor', 'smt-target-ring', 'smt-journey-pill', 'smt-journey-overview'];
 
 class ProgressionDetector {
   private cleanup: Array<() => void> = [];
@@ -429,6 +432,7 @@ export class JourneyRunner {
   private pill: JourneyPill | null = null;
   private ring: TargetRing | null = null;
   private detector: ProgressionDetector | null = null;
+  private overview: JourneyOverview | null = null;
 
   private journey: JourneyConfig | null = null;
   private currentStep = 0;
@@ -464,12 +468,13 @@ export class JourneyRunner {
       currentStep: this.currentStep,
       totalSteps: this.totalSteps,
       step: this.currentStepObj,
+      plan: this.status === 'previewing' ? this.journey?.steps : undefined,
     };
   }
 
   /** Whether a journey is currently planning or running. */
   get isActive(): boolean {
-    return this.status === 'running' || this.status === 'planning';
+    return this.status === 'running' || this.status === 'planning' || this.status === 'previewing';
   }
 
   // ── Public API ──────────────────────────────────────────────────────────────
@@ -495,6 +500,77 @@ export class JourneyRunner {
     this.status = 'planning';
     this._emit();
 
+    const steps = await this._planSteps(goal);
+    if (!steps) return; // already failed/cancelled
+    if (this._st() !== 'planning') return; // cancelled during planning
+
+    this.journey = { id: `smart-${Date.now()}`, title: goal, description: goal, steps };
+    this.totalSteps = steps.length;
+    await this._runFixed(steps);
+  }
+
+  /**
+   * Start a SMART journey and show the user the planned steps BEFORE executing.
+   * The overview panel is mounted; the caller must then invoke
+   * {@link startPreviewedJourney} (typically from a "Start" button) to begin.
+   *
+   * Returns the planned steps (or null on planning failure / 0 steps).
+   */
+  async startSmartWithPreview(goal: string): Promise<JourneyStep[] | null> {
+    this._cancel();
+    this._beginPill();
+    this.pill!.showPlanning();
+    this.status = 'planning';
+    this._emit();
+
+    const steps = await this._planSteps(goal);
+    if (!steps) return null;
+    if (this._st() !== 'planning') return null; // cancelled during planning
+
+    this.journey = { id: `smart-${Date.now()}`, title: goal, description: goal, steps };
+    this.totalSteps = steps.length;
+
+    // The pill served its planning purpose — tear it down so the overview is
+    // the only HUD while awaiting the user's Start. A fresh pill will mount
+    // when execution actually begins.
+    this.pill?.unmount();
+    this.pill = null;
+
+    this.status = 'previewing';
+    this._emit();
+
+    this.overview = new JourneyOverview({
+      goal,
+      steps,
+      onStart: () => this.startPreviewedJourney(),
+      onCancel: () => this.cancel(),
+    });
+    this.overview.mount();
+    return steps;
+  }
+
+  /**
+   * Begin executing a journey that was previously planned via
+   * {@link startSmartWithPreview}. No-op if the runner is not currently in
+   * the `previewing` state (defends against double-clicks).
+   */
+  async startPreviewedJourney(): Promise<void> {
+    if (this._st() !== 'previewing') return;
+    if (!this.journey) return;
+
+    // Switch the overview from plan → executing mode. It stays mounted through
+    // the whole run as the single source of truth for step progress, replacing
+    // the legacy JourneyPill HUD for this entry point.
+    this.overview?.setExecuting();
+    this._beginPillSilently();
+    await this._runFixed(this.journey.steps);
+  }
+
+  /**
+   * Internal: ask the agent for steps. On failure or 0 steps, surfaces an error
+   * via `_fail()` and returns null so the caller can early-return.
+   */
+  private async _planSteps(goal: string): Promise<JourneyStep[] | null> {
     let steps: JourneyStep[];
     try {
       await this.domScanner.refresh();
@@ -506,19 +582,15 @@ export class JourneyRunner {
     } catch (err) {
       console.warn('[ShowMeSDK] Smart journey planning failed:', err);
       this._fail('规划失败，请检查 Agent 服务');
-      return;
+      return null;
     }
 
-    if (this._st() === 'cancelled') return;
     if (!steps.length) {
       console.warn('[ShowMeSDK] Agent returned no steps for goal:', goal);
       this._fail('未能为该目标规划步骤');
-      return;
+      return null;
     }
-
-    this.journey = { id: `smart-${Date.now()}`, title: goal, description: goal, steps };
-    this.totalSteps = steps.length;
-    await this._runFixed(steps);
+    return steps;
   }
 
   /**
@@ -620,10 +692,21 @@ export class JourneyRunner {
         this.ring?.hide();
         this.ring = null;
         this.status = 'completed';
-        this.pill!.update(this.currentStep, steps.length, steps[i], 'completed');
+        // Release the cursor lock so it immediately follows the user's mouse
+        // again once the journey is done — no manual `releaseCursor()` needed.
+        this.cursorEngine.release();
+        this.pill?.update(this.currentStep, steps.length, steps[i], 'completed');
+        this.overview?.setCompleted();
         this._emit();
-        await sleep(1800);
-        this._teardownOverlays();
+        if (this.overview) {
+          // Overview-driven run: let the "完成" banner linger, then auto-close.
+          const ov = this.overview;
+          this.overview = null;
+          setTimeout(() => ov.unmount(), 2500);
+        } else {
+          // Pill-driven run (legacy / single-element flow): same auto-close.
+          this._teardownOverlays();
+        }
         break;
       }
 
@@ -641,7 +724,8 @@ export class JourneyRunner {
    */
   private async _executeStep(step: JourneyStep, current: number, total: number): Promise<void> {
     // ── Phase: finding ───────────────────────────────────────────────────────
-    this.pill!.update(current, total, step, 'finding');
+    this.overview?.setStepStatus(current, 'active');
+    this.pill?.update(current, total, step, 'finding');
 
     await this.domScanner.refresh();
     const elements = this.domScanner.getElements();
@@ -665,19 +749,24 @@ export class JourneyRunner {
 
     // ── Phase: navigating ────────────────────────────────────────────────────
     if (targetEl) {
-      this.pill!.update(current, total, step, 'navigating');
+      this.pill?.update(current, total, step, 'navigating');
       await this.cursorEngine.flyTo(targetEl);
       if (!this.ring) this.ring = new TargetRing();
-      this.ring.show(targetEl, step.hint || step.description); // U2: label near target
+      this.ring.show(targetEl);
     }
 
     if (this._st() !== 'running') return;
 
     // ── Phase: waiting — auto-advance on the user's action ───────────────────
-    this.pill!.update(current, total, step, 'waiting');
+    this.pill?.update(current, total, step, 'waiting');
     this.detector = new ProgressionDetector();
     await this.detector.waitForAction(targetEl);
     this.detector = null;
+
+    // Step done — mark it completed in the overview (and clear the ring).
+    this.overview?.setStepStatus(current, 'completed');
+    this.ring?.hide();
+    this.ring = null;
   }
 
   /** Mark an iterative journey complete and tear down. */
@@ -685,6 +774,7 @@ export class JourneyRunner {
     this.ring?.hide();
     this.ring = null;
     this.status = 'completed';
+    this.cursorEngine.release();
     const last = this.currentStepObj ?? { step: this.currentStep, title: '完成', description: '', query: '' };
     this.pill?.update(this.currentStep, 0, last, 'completed');
     this._emit();
@@ -704,11 +794,30 @@ export class JourneyRunner {
     this.status = 'running';
   }
 
+  /**
+   * Initialize the journey state without mounting the JourneyPill HUD. Used by
+   * `startPreviewedJourney`, where the JourneyOverview panel IS the HUD and a
+   * pill would be visually redundant.
+   */
+  private _beginPillSilently() {
+    this.currentStep = 0;
+    this.currentStepObj = undefined;
+    this.totalSteps = 0;
+    this.status = 'running';
+  }
+
   private _cancel() {
     if (this.status === 'idle') return;
     this.status = 'cancelled';
+    // Cancel returns control to the user — the cursor should immediately
+    // follow their mouse again (the cancel button was unreachable otherwise).
+    this.cursorEngine.release();
     this.detector?.abort();
     this.detector = null;
+    // Overview lives outside `_teardownOverlays` because it has its own
+    // lifecycle (mounted during previewing, not during execution).
+    this.overview?.unmount();
+    this.overview = null;
     this._teardownOverlays();
     this._emit();
   }
@@ -719,6 +828,7 @@ export class JourneyRunner {
    */
   private _fail(message: string) {
     this.status = 'error';
+    this.cursorEngine.release();
     this.detector?.abort();
     this.detector = null;
     this.ring?.hide();

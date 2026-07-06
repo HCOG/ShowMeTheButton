@@ -1,6 +1,6 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { ShowMeSDK, JourneyConfig, JourneyState, GuideResult } from '@show-me/core';
+import { ShowMeSDK, JourneyConfig, JourneyState, JourneyStep, GuideResult } from '@show-me/core';
 import { filter, Subject, Subscription } from 'rxjs';
 
 export type QueryStatus = 'idle' | 'scanning' | 'querying' | 'success' | 'error';
@@ -165,6 +165,27 @@ export class ShowMeService implements OnDestroy {
 
   cancelJourney(): void {
     this.sdk?.cancelJourney();
+  }
+
+  /** Plan a journey and present the overview panel without auto-executing. */
+  async previewJourney(
+    goal: string,
+    onJourneyState?: (s: JourneyState) => void,
+  ): Promise<JourneyStep[] | null> {
+    if (!this.sdk) await this.init();
+    return this.sdk!.previewJourney(goal, onJourneyState);
+  }
+
+  /** Pure data: ask the agent to plan steps without mounting any UI. */
+  async planJourney(goal: string): Promise<JourneyStep[]> {
+    if (!this.sdk) await this.init();
+    return this.sdk!.planJourney(goal);
+  }
+
+  /** Start executing a journey previously returned by previewJourney(). */
+  async startPreviewedJourney(): Promise<void> {
+    if (!this.sdk) return;
+    await this.sdk.startPreviewedJourney();
   }
 
   ngOnDestroy(): void {
