@@ -188,9 +188,14 @@ export class CursorEngine {
   hover(element: HTMLElement, message: string, duration = 4000): Promise<void> {
     return new Promise(resolve => {
       this.showTooltip(message);
-      
+
       setTimeout(() => {
         this.hideTooltip();
+        // Tooltip disappears → the cursor's "highlighted target" purpose is done,
+        // so release the stuck lock and let it resume following the user's mouse.
+        // Without this, the cursor would stay frozen at the destination forever
+        // after every flyTo() until something else calls release()/flyTo().
+        this.release();
         resolve();
       }, duration);
     });
