@@ -87,7 +87,11 @@ export class ShowMeSDK {
    * • journey → starts the pill-based journey (fire-and-forget); returns immediately
    *             so callers (e.g. the widget) can close themselves right away.
    */
-  async guide(userQuery: string, onJourneyState?: (state: JourneyState) => void): Promise<GuideResult> {
+  async guide(
+    userQuery: string,
+    onJourneyState?: (state: JourneyState) => void,
+    options?: { silent?: boolean },
+  ): Promise<GuideResult> {
     if (!this.initialized) await this.init();
     if (!this.active) this.activate();
 
@@ -118,7 +122,7 @@ export class ShowMeSDK {
       // startIterative mounts the pill synchronously before its first await, so
       // the pill is already visible by the time this method returns (U1 — no
       // "nothing happening" gap between the widget closing and the pill).
-      this.journey.startIterative(userQuery, response.steps).catch(err =>
+      this.journey.startIterative(userQuery, response.steps, { silent: options?.silent }).catch(err =>
         console.warn('[ShowMeSDK] Journey error:', err),
       );
       return { type: 'journey' };
@@ -266,6 +270,49 @@ export class ShowMeSDK {
   }
 
   /**
+   * Classify a query without starting a journey. Returns whether the agent
+   * classified it as a single-element match or a multi-step journey, plus
+   * the pre-planned steps (when available).
+   *
+   * Pure data — no DOM mounting, no cursor movement, no state changes. The
+   * widget uses this to decide between "show result" (single) and "show
+   * plan overview" (journey) without paying the cost of a second agent call.
+   */
+  async classify(userQuery: string): Promise<{
+    type: 'single' | 'journey';
+    result?: { reasoning?: string; confidence?: number; targetId?: string; needsConfirmation?: boolean };
+    steps?: JourneyStep[];
+  }> {
+    if (!this.initialized) await this.init();
+    if (!this.active) this.activate();
+    await this.domScanner.refresh();
+    const elements = this.domScanner.getElements();
+    const response = await this.agentClient.guide({
+      query: userQuery,
+      elements: elements.map(e => ({ id: e.id, label: e.label, type: e.type, text: e.metadata.text })),
+      context: { url: window.location.href, timestamp: Date.now() },
+    });
+    if (!response.success) {
+      throw new Error(response.error ?? 'Classify failed');
+    }
+    if (response.type === 'journey') {
+      return { type: 'journey', steps: response.steps ?? [] };
+    }
+    const r = response.result;
+    const confidence = r?.confidence ?? 0;
+    const targetId = r?.target_id;
+    return {
+      type: 'single',
+      result: {
+        reasoning: r?.reasoning,
+        confidence,
+        targetId,
+        needsConfirmation: !!targetId && confidence < CONFIDENCE_CONFIRM_THRESHOLD,
+      },
+    };
+  }
+
+  /**
    * Pure data API: ask the agent to plan steps for `goal` and return them
    * WITHOUT mounting any UI / changing any state.
    *
@@ -308,11 +355,14 @@ export class ShowMeSDK {
     goal: string,
     onState?: (state: JourneyState) => void,
     seedSteps?: JourneyConfig['steps'],
+    options?: { silent?: boolean },
   ): Promise<void> {
     if (!this.initialized) await this.init();
     if (!this.active) this.activate();
     if (onState) this.journey.onState(onState);
-    await this.journey.startIterative(goal, seedSteps);
+    // When silent=true, the caller (typically a custom widget) is rendering
+    // its own HUD and the SDK should NOT mount the bottom-left JourneyPill.
+    await this.journey.startIterative(goal, seedSteps, { silent: options?.silent });
   }
 
   cancelJourney(): void {
