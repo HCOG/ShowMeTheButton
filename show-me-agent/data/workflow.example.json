@@ -1,0 +1,163 @@
+[
+  {
+    "id": "v2-batch-delete-with-validation",
+    "title": "Batch delete with form validation",
+    "description": "Select rows, validate the delete confirmation, then delete. If the form has errors, stop and show a warning.",
+    "page": "/button-hell",
+    "estimatedTime": "1分钟",
+    "version": 2,
+    "metadata": {
+      "tags": ["delete", "validation", "interactive"],
+      "author": "show-me-team",
+      "updatedAt": "2026-07-08"
+    },
+    "entry": "select-rows",
+    "nodes": {
+      "select-rows": {
+        "id": "select-rows",
+        "type": "action",
+        "title": "勾选要删除的记录",
+        "description": "在表格中勾选需要删除的记录前面的复选框，可多选。",
+        "query": "全选复选框",
+        "hint": "勾选要删除的记录",
+        "output": {
+          "selectedCount": { "kind": "count", "selector": "tbody input[type=checkbox]:checked" }
+        }
+      },
+      "check-selection": {
+        "id": "check-selection",
+        "type": "branch",
+        "title": "检查是否有选中",
+        "description": "确认用户至少勾选了一条记录。",
+        "branches": [
+          {
+            "when": { "kind": "param-numeric-gt", "name": "selectedCount", "value": 0 },
+            "goto": "click-delete"
+          }
+        ],
+        "default": "show-no-selection-warning"
+      },
+      "click-delete": {
+        "id": "click-delete",
+        "type": "action",
+        "title": "点击「删除」按钮",
+        "description": "选好记录后，点击工具栏中的红色「删除」按钮。",
+        "query": "删除按钮",
+        "hint": "点击删除选中的记录"
+      },
+      "show-no-selection-warning": {
+        "id": "show-no-selection-warning",
+        "type": "note",
+        "title": "未选择任何记录",
+        "description": "请先勾选至少一条要删除的记录。",
+        "severity": "warning"
+      }
+    }
+  },
+  {
+    "id": "v2-employee-onboarding-with-optional",
+    "title": "Employee onboarding (with optional draft save)",
+    "description": "Walk through the form step by step. The 'Save draft' step is optional and can be skipped.",
+    "page": "/complex-form",
+    "estimatedTime": "5-10分钟",
+    "version": 2,
+    "metadata": {
+      "tags": ["form", "onboarding", "tutorial"]
+    },
+    "entry": "autofill",
+    "nodes": {
+      "autofill": {
+        "id": "autofill",
+        "type": "action",
+        "title": "自动填充示例数据",
+        "description": "点击「自动填充」快速填入示例数据，了解表单结构。",
+        "query": "自动填充按钮",
+        "hint": "点击快速填入示例数据"
+      },
+      "step1-next": {
+        "id": "step1-next",
+        "type": "action",
+        "title": "前往下一步",
+        "description": "完成个人信息后，点击「下一步」进入地址信息。",
+        "query": "下一步按钮",
+        "hint": "点击进入地址信息填写"
+      },
+      "step2-next": {
+        "id": "step2-next",
+        "type": "action",
+        "title": "继续下一步",
+        "description": "填写地址后，再次点击「下一步」进入就业信息。",
+        "query": "下一步按钮",
+        "hint": "点击进入就业信息"
+      },
+      "decide-save-draft": {
+        "id": "decide-save-draft",
+        "type": "branch",
+        "title": "Choose: save draft, skip, or submit",
+        "description": "User can save a draft (optional), skip straight to submit, or submit directly.",
+        "branches": [
+          { "when": { "kind": "url-matches", "pattern": "/edit$" }, "goto": "save-draft" }
+        ],
+        "default": "submit"
+      },
+      "save-draft": {
+        "id": "save-draft",
+        "type": "action",
+        "title": "保存草稿 (optional)",
+        "description": "在提交前可以点击「保存草稿」保存进度。",
+        "query": "保存草稿按钮",
+        "hint": "点击保存，随时可以继续填写",
+        "optional": true,
+        "timeout": 30
+      },
+      "submit": {
+        "id": "submit",
+        "type": "action",
+        "title": "提交表单",
+        "description": "确认信息无误后，点击「提交表单」完成入职登记。",
+        "query": "提交表单按钮",
+        "hint": "点击提交完成入职登记"
+      }
+    }
+  },
+  {
+    "id": "v2-bulk-row-actions",
+    "title": "Apply an action to every visible row",
+    "description": "Loop through all visible table rows and click a per-row action. Demonstrates the `loop` node with a DOM-based source.",
+    "page": "/button-hell",
+    "estimatedTime": "30秒",
+    "version": 2,
+    "metadata": {
+      "tags": ["loop", "bulk"]
+    },
+    "entry": "select-all",
+    "nodes": {
+      "select-all": {
+        "id": "select-all",
+        "type": "action",
+        "title": "全选",
+        "description": "点击表头的全选复选框。",
+        "query": "表头全选复选框",
+        "hint": "勾选所有可见行"
+      },
+      "loop-row-action": {
+        "id": "loop-row-action",
+        "type": "loop",
+        "title": "对每行执行操作",
+        "description": "Iterates over selected rows and clicks the row action button on each.",
+        "source": { "kind": "selector-list", "selector": "tbody tr:has(input[type=checkbox]:checked)" },
+        "itemParam": "row",
+        "body": "click-row-action",
+        "maxIterations": 100
+      },
+      "click-row-action": {
+        "id": "click-row-action",
+        "type": "action",
+        "title": "Click the row's action button",
+        "description": "Click the per-row action button (e.g. delete) on the current iteration row.",
+        "query": "行操作按钮",
+        "hint": "点击当前行的操作按钮"
+      }
+    }
+  }
+]
