@@ -85,7 +85,7 @@ For SINGLE, return ONLY this JSON:
   "type": "single",
   "target_id": "<id from elements list>",
   "confidence": <0.0–1.0>,
-  "reasoning": "<one sentence in the same language as the query>"
+  "reasoning": "<one sentence in English>"
 }
 
 For JOURNEY, return ONLY this JSON (2–6 steps, no more):
@@ -103,7 +103,11 @@ For JOURNEY, return ONLY this JSON (2–6 steps, no more):
 
 Rules:
 - Return ONLY valid JSON — no markdown, no explanation outside the JSON
-- Titles and descriptions must be in the SAME LANGUAGE as the user's query
+- IMPORTANT: All titles, descriptions, and the "reasoning" field MUST be written
+  in English. Even when the user's query is in another language, the response
+  fields stay in English. The only Chinese (or other non-English) content allowed
+  in your output is the "query" field, which is matched against the user's
+  page elements and may quote the element label verbatim.
 - Journey "query" fields must relate to elements that actually exist in the provided list
 - If nothing matches well for single, still pick the closest and lower the confidence
 """

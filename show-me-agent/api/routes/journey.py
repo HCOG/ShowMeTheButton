@@ -60,7 +60,8 @@ Rules:
 - Each step must correspond to one interactive UI action (click, select, etc.)
 - The "query" field is a natural-language description used to locate the element;
   it must relate to something visible in the provided elements list
-- Titles and descriptions should be in the SAME LANGUAGE as the goal
+- Titles and descriptions MUST be in English (regardless of the goal's language).
+  Only the "query" field may quote the user's element labels verbatim.
 - Do NOT invent steps for elements that clearly don't exist on this page
 """
 
@@ -162,8 +163,8 @@ def _keyword_fallback(goal: str, elements: list) -> list:
     """Best-effort fallback when no LLM is configured."""
     return [
         {
-            "title": f"执行: {goal[:30]}",
-            "description": f'找到与"{goal}"相关的操作元素并点击',
+            "title": f"Execute: {goal[:30]}",
+            "description": f'Click the element matching "{goal}"',
             "query": goal,
             "hint": None,
         }
@@ -254,7 +255,7 @@ Rules:
 - If the goal has already been achieved by the completed steps, set done=true
 - If you cannot find a sensible next element on this page, set done=true with a
   reasoning explaining why (do not invent steps)
-- Titles/descriptions in the SAME LANGUAGE as the goal
+- Titles/descriptions MUST be in English (regardless of the goal's language).
 """
 
 NEXT_STEP_USER_TEMPLATE = """Overall goal: "{goal}"
