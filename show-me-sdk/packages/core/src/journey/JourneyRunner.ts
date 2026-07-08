@@ -31,7 +31,7 @@ export interface JourneyState {
   currentStep: number;   // 1-based
   totalSteps: number;
   step?: JourneyStep;
-  /** Populated when status === 'previewing' — full list of planned steps. */
+  /** Populated when status === 'previewing' or 'running' — full list of planned steps. */
   plan?: JourneyStep[];
 }
 
@@ -435,6 +435,8 @@ export class JourneyRunner {
   private overview: JourneyOverview | null = null;
 
   private journey: JourneyConfig | null = null;
+  /** The user's original goal, remembered for re-planning across page nav. */
+  private goal: string = '';
   private currentStep = 0;
   /** Total steps; 0 means unknown (iterative mode). */
   private totalSteps = 0;
@@ -468,7 +470,9 @@ export class JourneyRunner {
       currentStep: this.currentStep,
       totalSteps: this.totalSteps,
       step: this.currentStepObj,
-      plan: this.status === 'previewing' ? this.journey?.steps : undefined,
+      plan: (this.status === 'previewing' || this.status === 'running')
+        ? this.journey?.steps
+        : undefined,
     };
   }
 
@@ -603,10 +607,24 @@ export class JourneyRunner {
    * useful to prime a curated workflow while still letting the agent adapt /
    * extend it against the live UI.
    */
-  async startIterative(goal: string, seedSteps?: JourneyStep[]): Promise<void> {
+  async startIterative(goal: string, seedSteps?: JourneyStep[], options?: { silent?: boolean }): Promise<void> {
     this._cancel();
-    this._beginPill();
-    this.totalSteps = 0; // unknown — pill renders a growing dot trail
+    this.goal = goal;  // remember for later nextStep() calls
+    if (options?.silent) {
+      this._beginPillSilently();
+    } else {
+      this._beginPill();
+    }
+    // Store the seed (or empty array) so getState().plan returns the full
+    // step list during the run — widget listeners need this to keep their
+    // step list in sync with what the runner is actually executing.
+    this.journey = {
+      id: `iterative-${Date.now()}`,
+      title: goal,
+      description: goal,
+      steps: seedSteps ?? [],
+    };
+    this.totalSteps = seedSteps?.length ?? 0; // unknown once we start re-planning
     this.status = 'running';
 
     const history: Array<{ title: string; description?: string }> = [];

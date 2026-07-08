@@ -116,6 +116,18 @@ async def _call_minimax(query: str, elements: List[Dict], rag_docs: Optional[Lis
         )
         resp.raise_for_status()
         data = resp.json()
+        # MiniMax returns HTTP 200 with a nested base_resp on app errors.
+        # Surface those explicitly instead of letting KeyError('choices') leak.
+        base = data.get("base_resp")
+        if isinstance(base, dict) and base.get("status_code", 0) not in (0, None):
+            raise RuntimeError(
+                f"MiniMax API error {base.get('status_code')}: "
+                f"{base.get('status_msg', 'unknown')}"
+            )
+        if "choices" not in data:
+            raise RuntimeError(
+                f"MiniMax response missing 'choices': {str(data)[:300]}"
+            )
         content = data["choices"][0]["message"]["content"]
         return _parse_llm_response(content)
 

@@ -133,6 +133,21 @@ def _parse(text: str) -> dict:
     return json.loads(text)
 
 
+def _raise_for_app_error(data: dict, provider: str) -> None:
+    """Some providers (MiniMax) return HTTP 200 even for app-level errors and
+    signal failure via a nested `base_resp` object. Raise RuntimeError with a
+    clear message so callers surface a useful error instead of `KeyError: 'choices'`.
+    """
+    base = data.get("base_resp")
+    if isinstance(base, dict) and base.get("status_code", 0) not in (0, None):
+        raise RuntimeError(
+            f"{provider} API error {base.get('status_code')}: {base.get('status_msg', 'unknown')}"
+        )
+    if "choices" not in data:
+        preview = json.dumps(data, ensure_ascii=False)[:300]
+        raise RuntimeError(f"{provider} response missing 'choices': {preview}")
+
+
 # ── LLM callers ───────────────────────────────────────────────────────────────
 
 async def _call_openai(query: str, elements: list) -> dict:
@@ -175,7 +190,9 @@ async def _call_minimax(query: str, elements: list) -> dict:
             },
         )
         resp.raise_for_status()
-        return _parse(resp.json()["choices"][0]["message"]["content"])
+        data = resp.json()
+        _raise_for_app_error(data, "MiniMax")
+        return _parse(data["choices"][0]["message"]["content"])
 
 
 async def _call_ollama(query: str, elements: list) -> dict:

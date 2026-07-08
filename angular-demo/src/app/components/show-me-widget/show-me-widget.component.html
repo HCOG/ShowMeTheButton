@@ -112,6 +112,69 @@
         <button class="smt-btn-ghost" (click)="cancelPlannedJourney()">取消</button>
       </div>
     </div>
+
+    <!-- Executing: all steps visible, current highlighted, past dimmed -->
+    <div *ngIf="state === 'executing'" class="smt-body smt-exec">
+      <div class="smt-exec-header">
+        <span class="smt-exec-title">⚙️ 执行中 ({{ execCurrent }}/{{ execSteps.length }})</span>
+        <span class="smt-exec-phase" [class]="'phase-' + execPhase">
+          {{ execPhase === 'finding' ? '🔍 定位中'
+             : execPhase === 'navigating' ? '✈️ 飞向目标'
+             : '👆 请执行操作' }}
+        </span>
+      </div>
+      <ol class="smt-step-list">
+        <li *ngFor="let s of execSteps; let i = index"
+            class="smt-step"
+            [class.status-completed]="execStepStatus[i] === 'completed'"
+            [class.status-active]="execStepStatus[i] === 'active'">
+          <span class="smt-step-bullet">
+            <ng-container [ngSwitch]="execStepStatus[i]">
+              <span *ngSwitchCase="'completed'">✅</span>
+              <span *ngSwitchCase="'active'" class="pulse">…</span>
+              <span *ngSwitchDefault class="num">{{ i + 1 }}</span>
+            </ng-container>
+          </span>
+          <div class="smt-step-text">
+            <div class="smt-step-title">{{ s.title }}</div>
+            <div class="smt-step-desc" *ngIf="s.description">{{ s.description }}</div>
+          </div>
+        </li>
+      </ol>
+      <div class="smt-plan-actions">
+        <button class="smt-btn-ghost" (click)="advanceCurrentStep()" title="如果自动检测没触发，手动标记当前步骤完成">
+          完成 ✓
+        </button>
+        <button class="smt-btn-ghost" (click)="cancelExecutingJourney()">取消执行</button>
+      </div>
+    </div>
+
+    <!-- Completed: celebration + countdown circle, then auto-reverts to expanded -->
+    <div *ngIf="state === 'completed'" class="smt-body smt-completed">
+      <div class="smt-completed-header">
+        <span class="smt-completed-icon">🎉</span>
+        <span class="smt-completed-title">已完成 {{ execSteps.length }} 步</span>
+        <span class="smt-completed-countdown">
+          <svg viewBox="0 0 36 36" class="smt-countdown-svg">
+            <circle cx="18" cy="18" r="15.9" class="smt-countdown-track"/>
+            <circle cx="18" cy="18" r="15.9" class="smt-countdown-fill"
+                    [style.stroke-dashoffset]="(completedCountdown / 5) * 100"/>
+          </svg>
+          <span class="smt-countdown-num">{{ completedCountdown }}</span>
+        </span>
+      </div>
+      <ol class="smt-step-list">
+        <li *ngFor="let s of execSteps; let i = index" class="smt-step status-completed">
+          <span class="smt-step-bullet">✅</span>
+          <div class="smt-step-text">
+            <div class="smt-step-title">{{ s.title }}</div>
+          </div>
+        </li>
+      </ol>
+      <div class="smt-plan-actions">
+        <button class="smt-btn-ghost" (click)="closeCompleted()">关闭</button>
+      </div>
+    </div>
   </div>
 
 </div>

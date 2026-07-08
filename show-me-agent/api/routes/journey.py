@@ -51,7 +51,10 @@ create an ordered sequence of steps to achieve that goal.
 
 Rules:
 - Return ONLY valid JSON, no markdown, no text outside the JSON
-- 2–7 steps maximum; fewer is better
+- 2–8 steps maximum — include every action the user genuinely needs to take
+  to reach the goal end state. Do NOT artificially compress multiple actions
+  into one step (e.g. "fill form and submit" should be two steps if both
+  clicks are visible in the elements list)
 - Each step must correspond to one interactive UI action (click, select, etc.)
 - The "query" field is a natural-language description used to locate the element;
   it must relate to something visible in the provided elements list
@@ -94,6 +97,22 @@ def _parse(text: str) -> dict:
         lines = text.split("\n")
         text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
     return json.loads(text)
+
+
+def _raise_for_app_error(data: dict, provider: str) -> None:
+    """Some providers (MiniMax) return HTTP 200 even for app-level errors and
+    signal failure via a nested `base_resp` object. Raise RuntimeError with a
+    clear message so callers surface a useful error instead of `KeyError: 'choices'`.
+    """
+    base = data.get("base_resp")
+    if isinstance(base, dict) and base.get("status_code", 0) not in (0, None):
+        raise RuntimeError(
+            f"{provider} API error {base.get('status_code')}: {base.get('status_msg', 'unknown')}"
+        )
+    if "choices" not in data:
+        # Truncated preview of the response to help diagnose
+        preview = json.dumps(data, ensure_ascii=False)[:300]
+        raise RuntimeError(f"{provider} response missing 'choices': {preview}")
 
 
 # ── LLM callers (mirror the pattern in llm_selector.py) ──────────────────────
@@ -139,7 +158,9 @@ async def _plan_minimax(goal: str, elements: list) -> list:
             },
         )
         resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"]
+        data = resp.json()
+        _raise_for_app_error(data, "MiniMax")
+        content = data["choices"][0]["message"]["content"]
         return _parse(content)["steps"]
 
 
@@ -341,7 +362,9 @@ async def _next_minimax(goal: str, history: list, elements: list) -> dict:
             },
         )
         resp.raise_for_status()
-        return _parse(resp.json()["choices"][0]["message"]["content"])
+        data = resp.json()
+        _raise_for_app_error(data, "MiniMax")
+        return _parse(data["choices"][0]["message"]["content"])
 
 
 async def _next_ollama(goal: str, history: list, elements: list) -> dict:

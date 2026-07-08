@@ -2,7 +2,6 @@ import { Injectable, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { ShowMeSDK, JourneyConfig, JourneyState, JourneyStep, GuideResult } from '@show-me/core';
 import { filter, Subject, Subscription } from 'rxjs';
-
 export type QueryStatus = 'idle' | 'scanning' | 'querying' | 'success' | 'error';
 
 export interface QueryResult {
@@ -20,6 +19,8 @@ export class ShowMeService implements OnDestroy {
 
   /** Emits when a global hotkey (Alt+V) requests voice input. The widget subscribes. */
   readonly voiceHotkey$ = new Subject<void>();
+  /** Emits on every journey state change (start, step advance, complete, cancel). */
+  readonly journeyState$ = new Subject<JourneyState>();
 
   constructor(private router: Router) {
     // Re-scan DOM after every navigation (new page = new elements).
@@ -48,6 +49,9 @@ export class ShowMeService implements OnDestroy {
     this.sdk = new ShowMeSDK({ agentEndpoint });
     await this.sdk.init();
     this.sdk.activate();
+    // Forward every journey state change so the widget can drive its own
+    // executing / completed panels without mounting a separate JourneyPill.
+    this.sdk.journey.onState((s) => this.journeyState$.next(s));
     this._active = true;
   }
 
@@ -110,12 +114,31 @@ export class ShowMeService implements OnDestroy {
   }
 
   /**
+   * Classify a query (single vs journey) without starting execution.
+   * Returns the classification + optional pre-planned steps for journeys.
+   */
+  async classify(goal: string): Promise<{
+    type: 'single' | 'journey';
+    result?: { reasoning?: string; confidence?: number; targetId?: string; needsConfirmation?: boolean };
+    steps?: JourneyStep[];
+  }> {
+    if (!this.sdk) await this.init();
+    return this.sdk!.classify(goal);
+  }
+
+  /**
    * Unified guide — backend decides single vs multi-step journey automatically.
    * For journeys the pill HUD starts immediately; caller can close its own UI.
+   * `options.silent = true` suppresses the bottom-left JourneyPill so the caller
+   * can render its own execution HUD (e.g. the widget's `executing` state).
    */
-  async guide(text: string, onJourneyState?: (s: JourneyState) => void): Promise<GuideResult> {
+  async guide(
+    text: string,
+    onJourneyState?: (s: JourneyState) => void,
+    options?: { silent?: boolean },
+  ): Promise<GuideResult> {
     if (!this.sdk) await this.init();
-    return this.sdk!.guide(text, onJourneyState);
+    return this.sdk!.guide(text, onJourneyState, options);
   }
 
   async query(text: string): Promise<QueryResult> {
@@ -152,9 +175,10 @@ export class ShowMeService implements OnDestroy {
     goal: string,
     onState?: (s: JourneyState) => void,
     seedSteps?: JourneyConfig['steps'],
+    options?: { silent?: boolean },
   ): Promise<void> {
     if (!this.sdk) await this.init();
-    await this.sdk!.startIterativeJourney(goal, onState, seedSteps);
+    await this.sdk!.startIterativeJourney(goal, onState, seedSteps, options);
   }
 
   /** Fly the cursor to a specific element (used to confirm a low-confidence match). */
