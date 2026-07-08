@@ -1,0 +1,270 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://show-me-the-button.dev/schemas/workflow-v2.json",
+  "title": "ShowMeTheButton Workflow v2",
+  "description": "Node-based DAG workflow schema. Each workflow is a collection of typed nodes connected by control flow (branch, parallel, loop, subworkflow). v1 linear workflows are auto-migrated to v2 by the runtime.",
+  "type": "object",
+  "required": ["id", "title", "description", "page", "version", "entry", "nodes"],
+  "additionalProperties": false,
+  "properties": {
+    "id":        { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+    "title":     { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "page":      { "type": "string", "minLength": 1 },
+    "estimatedTime": { "type": "string" },
+    "version":   { "const": 2 },
+    "entry":     { "type": "string" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tags":      { "type": "array", "items": { "type": "string" } },
+        "author":    { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "description": "Legacy v1 steps. Optional in v2; preserved for backward compat.",
+      "items": { "$ref": "#/$defs/legacyStep" }
+    },
+    "nodes": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z0-9_-]+$": { "$ref": "#/$defs/node" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "legacyStep": {
+      "type": "object",
+      "required": ["step", "title", "description", "query"],
+      "properties": {
+        "step":        { "type": "integer", "minimum": 1 },
+        "title":       { "type": "string" },
+        "description": { "type": "string" },
+        "query":       { "type": "string" },
+        "hint":        { "type": "string" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "type", "title"],
+      "properties": {
+        "id":          { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+        "type":        { "enum": ["action", "wait", "branch", "parallel", "loop", "subworkflow", "note"] },
+        "title":       { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "position":    {
+          "type": "object",
+          "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
+        },
+        "query":       { "type": "string" },
+        "hint":        { "type": "string" },
+        "successOn":   { "enum": ["clicked", "input", "navigated", "mutated", "done"] },
+        "optional":    { "type": "boolean" },
+        "timeout":     { "type": "integer", "minimum": 1 },
+        "output": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/outputExtractor" }
+        },
+        "until": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["kind", "selector"],
+              "properties": {
+                "kind":     { "const": "selector-exists" },
+                "selector": { "type": "string" }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["kind", "pattern"],
+              "properties": {
+                "kind":    { "const": "url-matches" },
+                "pattern": { "type": "string" }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["kind", "text"],
+              "properties": {
+                "kind": { "const": "text-appears" },
+                "text": { "type": "string" }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["kind", "timeoutMs"],
+              "properties": {
+                "kind":      { "const": "network-idle" },
+                "timeoutMs": { "type": "integer" }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["kind", "ms"],
+              "properties": {
+                "kind": { "const": "duration" },
+                "ms":  { "type": "integer", "minimum": 1 }
+              }
+            }
+          ]
+        },
+        "branches": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["when", "goto"],
+            "properties": {
+              "when": { "$ref": "#/$defs/condition" },
+              "goto": { "type": "string" }
+            }
+          }
+        },
+        "default": { "type": "string" },
+        "all": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "waitFor": { "enum": ["all", "any"] },
+        "failFast": { "type": "boolean" },
+        "source": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["kind", "selector"],
+              "properties": {
+                "kind":     { "const": "selector-list" },
+                "selector": { "type": "string" }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["kind", "name"],
+              "properties": {
+                "kind": { "const": "param-list" },
+                "name": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "body": { "type": "string" },
+        "itemParam": { "type": "string" },
+        "maxIterations": { "type": "integer", "minimum": 1 },
+        "breakWhen": { "$ref": "#/$defs/condition" },
+        "ref": { "type": "string" },
+        "inputs": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "severity": { "enum": ["info", "warning", "success"] }
+      }
+    },
+    "outputExtractor": {
+      "type": "object",
+      "required": ["kind", "selector"],
+      "properties": {
+        "kind":     { "enum": ["attr", "text", "value", "count"] },
+        "selector": { "type": "string" },
+        "attr":     { "type": "string" }
+      }
+    },
+    "condition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "name", "value"],
+          "properties": {
+            "kind":  { "const": "param-equals" },
+            "name":  { "type": "string" },
+            "value": {}
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "name"],
+          "properties": {
+            "kind": { "const": "param-exists" },
+            "name": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "name"],
+          "properties": {
+            "kind": { "const": "param-truthy" },
+            "name": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "name", "value"],
+          "properties": {
+            "kind":  { "const": "param-numeric-gt" },
+            "name":  { "type": "string" },
+            "value": { "type": "number" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "name", "substr"],
+          "properties": {
+            "kind":   { "const": "param-contains" },
+            "name":   { "type": "string" },
+            "substr": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "pattern"],
+          "properties": {
+            "kind":    { "const": "url-matches" },
+            "pattern": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "selector"],
+          "properties": {
+            "kind":     { "const": "selector-exists" },
+            "selector": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "selector", "text"],
+          "properties": {
+            "kind":     { "const": "selector-text-matches" },
+            "selector": { "type": "string" },
+            "text":     { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "of"],
+          "properties": {
+            "kind": { "enum": ["all", "any"] },
+            "of":  { "type": "array", "items": { "$ref": "#/$defs/condition" } }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "of"],
+          "properties": {
+            "kind": { "const": "not" },
+            "of":  { "$ref": "#/$defs/condition" }
+          }
+        }
+      ]
+    }
+  }
+}

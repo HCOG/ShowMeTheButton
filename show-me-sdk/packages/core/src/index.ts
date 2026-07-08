@@ -6,6 +6,30 @@ export { ShowMeSDK } from './sdk';
 export type { GuideResult } from './sdk';
 export { JourneyRunner } from './journey/JourneyRunner';
 export type { JourneyConfig, JourneyStep, JourneyState, JourneyStatus } from './journey/JourneyRunner';
+export {
+  migrateV1ToV2,
+  validateWorkflowV2,
+  isV2Workflow,
+  topologicalNodes,
+} from './journey/workflow';
+export type {
+  Workflow,
+  WorkflowV2,
+  WorkflowNode,
+  WorkflowNodeBase,
+  ActionNode,
+  WaitNode,
+  BranchNode,
+  ParallelNode,
+  LoopNode,
+  SubworkflowNode,
+  NoteNode,
+  NodeType,
+  Condition,
+  OutputExtractor,
+  LegacyStep,
+  JsonValue,
+} from './types/workflow';
 export { SpeechInput } from './voice/SpeechInput';
 export type { SpeechResultCallback, SpeechErrorCallback, SpeechEndCallback } from './voice/SpeechInput';
 
