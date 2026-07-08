@@ -4,6 +4,8 @@ $primary: #667eea;
 $primary-dark: #5a67d8;
 $radius: 12px;
 $shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+// Spring-overshoot easing shared by the widget transitions.
+$bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
 
 .smt-widget {
   position: fixed;
@@ -13,7 +15,7 @@ $shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   // Only animate width — the panel stays anchored at right-bottom throughout.
   // Content morphs in place: input → plan-overview → input, no position changes.
-  transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: width 0.4s $bouncy;
 }
 
 // plan-overview is anchored in the same place; the only difference is the
@@ -57,7 +59,7 @@ $shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   overflow: hidden;
   animation: smt-slide-up 0.2s ease;
   // Width morphs alongside the position transition on .smt-widget.
-  transition: width 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: width 0.45s $bouncy;
 }
 
 // Plan-overview state widens the panel to fit the step list, but stays

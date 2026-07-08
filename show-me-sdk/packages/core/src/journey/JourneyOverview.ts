@@ -1,4 +1,5 @@
 import { JourneyStep } from './JourneyRunner';
+import { Z_INDEX } from '../constants';
 
 interface JourneyOverviewOptions {
   goal: string;
@@ -49,7 +50,7 @@ export class JourneyOverview {
       bottom: '24px',
       left: '50%',
       transform: 'translateX(-50%)',
-      zIndex: '2147483646',
+      zIndex: String(Z_INDEX.OVERLAY),
       pointerEvents: 'none',
     });
     this.shadow = this.container.attachShadow({ mode: 'open' });

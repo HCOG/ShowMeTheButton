@@ -15,6 +15,8 @@ from pydantic import BaseModel
 from typing import List, Optional, Any, Dict
 import os, json, time, httpx
 
+from api.llm_utils import parse_llm_json, raise_for_app_error, ollama_available
+
 router = APIRouter()
 
 
@@ -125,27 +127,6 @@ def _build_prompt(query: str, elements: list) -> str:
     )
 
 
-def _parse(text: str) -> dict:
-    text = text.strip()
-    if text.startswith("```"):
-        lines = text.split("\n")
-        text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-    return json.loads(text)
-
-
-def _raise_for_app_error(data: dict, provider: str) -> None:
-    """Some providers (MiniMax) return HTTP 200 even for app-level errors and
-    signal failure via a nested `base_resp` object. Raise RuntimeError with a
-    clear message so callers surface a useful error instead of `KeyError: 'choices'`.
-    """
-    base = data.get("base_resp")
-    if isinstance(base, dict) and base.get("status_code", 0) not in (0, None):
-        raise RuntimeError(
-            f"{provider} API error {base.get('status_code')}: {base.get('status_msg', 'unknown')}"
-        )
-    if "choices" not in data:
-        preview = json.dumps(data, ensure_ascii=False)[:300]
-        raise RuntimeError(f"{provider} response missing 'choices': {preview}")
 
 
 # ── LLM callers ───────────────────────────────────────────────────────────────
@@ -169,7 +150,7 @@ async def _call_openai(query: str, elements: list) -> dict:
             },
         )
         resp.raise_for_status()
-        return _parse(resp.json()["choices"][0]["message"]["content"])
+        return parse_llm_json(resp.json()["choices"][0]["message"]["content"])
 
 
 async def _call_minimax(query: str, elements: list) -> dict:
@@ -191,8 +172,8 @@ async def _call_minimax(query: str, elements: list) -> dict:
         )
         resp.raise_for_status()
         data = resp.json()
-        _raise_for_app_error(data, "MiniMax")
-        return _parse(data["choices"][0]["message"]["content"])
+        raise_for_app_error(data, "MiniMax")
+        return parse_llm_json(data["choices"][0]["message"]["content"])
 
 
 async def _call_ollama(query: str, elements: list) -> dict:
@@ -205,16 +186,8 @@ async def _call_ollama(query: str, elements: list) -> dict:
             json={"model": model, "prompt": prompt, "stream": False, "format": "json"},
         )
         resp.raise_for_status()
-        return _parse(resp.json()["response"])
+        return parse_llm_json(resp.json()["response"])
 
-
-async def _ollama_available() -> bool:
-    try:
-        async with httpx.AsyncClient(timeout=2) as client:
-            r = await client.get(f"{os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')}/api/tags")
-            return r.status_code == 200
-    except Exception:
-        return False
 
 
 def _keyword_fallback(query: str, elements: list) -> dict:
@@ -241,7 +214,7 @@ async def handle_guide(req: GuideRequest):
             data = await _call_openai(req.query, elements_dict)
         elif os.getenv("MINIMAX_API_KEY"):
             data = await _call_minimax(req.query, elements_dict)
-        elif await _ollama_available():
+        elif await ollama_available():
             data = await _call_ollama(req.query, elements_dict)
         else:
             data = _keyword_fallback(req.query, elements_dict)

@@ -86,7 +86,7 @@ export class ShowMeService implements OnDestroy {
 
   static browserVoiceSupported(): boolean {
     return typeof window !== 'undefined' &&
-      !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+      !!(window.SpeechRecognition ?? window.webkitSpeechRecognition);
   }
 
   /** Trigger the voice-input hotkey path (used by Alt+V). */

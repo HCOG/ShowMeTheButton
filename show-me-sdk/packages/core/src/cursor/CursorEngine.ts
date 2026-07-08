@@ -1,6 +1,7 @@
 import { EventBus } from '../bus/EventBus';
 import { SDK_EVENTS } from '../bus/EventBus';
 import { CursorConfig } from '../types';
+import { Z_INDEX, DEFAULT_CURSOR_SIZE } from '../constants';
 
 export class CursorEngine {
   private eventBus: EventBus;
@@ -19,11 +20,10 @@ export class CursorEngine {
     this.config = {
       autoHide: config.autoHide ?? true,
       followMouse: config.followMouse ?? true,
-      // Use the maximum 32-bit integer so the cursor always sits above every
-      // modal, drawer, dropdown, or overlay regardless of their z-index value.
-      zIndex: config.zIndex ?? 2147483647,
+      zIndex: config.zIndex ?? Z_INDEX.CURSOR,
       offsetX: config.offsetX ?? 15,  // 默认偏移15px
       offsetY: config.offsetY ?? 15,
+      size: config.size ?? DEFAULT_CURSOR_SIZE,
     };
   }
 
@@ -63,8 +63,8 @@ export class CursorEngine {
 
       .cursor {
         position: fixed;
-        width: 24px;
-        height: 24px;
+        width: ${this.config.size}px;
+        height: ${this.config.size}px;
         background: #667eea;
         border-radius: 50%;
         pointer-events: none;

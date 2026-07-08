@@ -11,6 +11,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 import os, json, time, httpx
 
+from api.llm_utils import parse_llm_json, raise_for_app_error, ollama_available
+
 router = APIRouter()
 
 
@@ -91,28 +93,6 @@ def _build_prompt(goal: str, elements: list) -> str:
     )
 
 
-def _parse(text: str) -> dict:
-    text = text.strip()
-    if text.startswith("```"):
-        lines = text.split("\n")
-        text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-    return json.loads(text)
-
-
-def _raise_for_app_error(data: dict, provider: str) -> None:
-    """Some providers (MiniMax) return HTTP 200 even for app-level errors and
-    signal failure via a nested `base_resp` object. Raise RuntimeError with a
-    clear message so callers surface a useful error instead of `KeyError: 'choices'`.
-    """
-    base = data.get("base_resp")
-    if isinstance(base, dict) and base.get("status_code", 0) not in (0, None):
-        raise RuntimeError(
-            f"{provider} API error {base.get('status_code')}: {base.get('status_msg', 'unknown')}"
-        )
-    if "choices" not in data:
-        # Truncated preview of the response to help diagnose
-        preview = json.dumps(data, ensure_ascii=False)[:300]
-        raise RuntimeError(f"{provider} response missing 'choices': {preview}")
 
 
 # ── LLM callers (mirror the pattern in llm_selector.py) ──────────────────────
@@ -137,7 +117,7 @@ async def _plan_openai(goal: str, elements: list) -> list:
         )
         resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"]
-        return _parse(content)["steps"]
+        return parse_llm_json(content)["steps"]
 
 
 async def _plan_minimax(goal: str, elements: list) -> list:
@@ -159,9 +139,9 @@ async def _plan_minimax(goal: str, elements: list) -> list:
         )
         resp.raise_for_status()
         data = resp.json()
-        _raise_for_app_error(data, "MiniMax")
+        raise_for_app_error(data, "MiniMax")
         content = data["choices"][0]["message"]["content"]
-        return _parse(content)["steps"]
+        return parse_llm_json(content)["steps"]
 
 
 async def _plan_ollama(goal: str, elements: list) -> list:
@@ -174,17 +154,8 @@ async def _plan_ollama(goal: str, elements: list) -> list:
             json={"model": model, "prompt": prompt, "stream": False, "format": "json"},
         )
         resp.raise_for_status()
-        return _parse(resp.json()["response"])["steps"]
+        return parse_llm_json(resp.json()["response"])["steps"]
 
-
-async def _ollama_available() -> bool:
-    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    try:
-        async with httpx.AsyncClient(timeout=2) as client:
-            r = await client.get(f"{base_url}/api/tags")
-            return r.status_code == 200
-    except Exception:
-        return False
 
 
 def _keyword_fallback(goal: str, elements: list) -> list:
@@ -216,7 +187,7 @@ async def plan_journey(req: PlanRequest):
             raw_steps = await _plan_openai(req.goal, elements_dict)
         elif os.getenv("MINIMAX_API_KEY"):
             raw_steps = await _plan_minimax(req.goal, elements_dict)
-        elif await _ollama_available():
+        elif await ollama_available():
             raw_steps = await _plan_ollama(req.goal, elements_dict)
         else:
             raw_steps = _keyword_fallback(req.goal, elements_dict)
@@ -341,7 +312,7 @@ async def _next_openai(goal: str, history: list, elements: list) -> dict:
             },
         )
         resp.raise_for_status()
-        return _parse(resp.json()["choices"][0]["message"]["content"])
+        return parse_llm_json(resp.json()["choices"][0]["message"]["content"])
 
 
 async def _next_minimax(goal: str, history: list, elements: list) -> dict:
@@ -363,8 +334,8 @@ async def _next_minimax(goal: str, history: list, elements: list) -> dict:
         )
         resp.raise_for_status()
         data = resp.json()
-        _raise_for_app_error(data, "MiniMax")
-        return _parse(data["choices"][0]["message"]["content"])
+        raise_for_app_error(data, "MiniMax")
+        return parse_llm_json(data["choices"][0]["message"]["content"])
 
 
 async def _next_ollama(goal: str, history: list, elements: list) -> dict:
@@ -377,7 +348,7 @@ async def _next_ollama(goal: str, history: list, elements: list) -> dict:
             json={"model": model, "prompt": prompt, "stream": False, "format": "json"},
         )
         resp.raise_for_status()
-        return _parse(resp.json()["response"])
+        return parse_llm_json(resp.json()["response"])
 
 
 def _next_keyword_fallback(goal: str, history: list, elements: list) -> dict:
@@ -416,7 +387,7 @@ async def next_step(req: NextStepRequest):
             data = await _next_openai(req.goal, history, elements_dict)
         elif os.getenv("MINIMAX_API_KEY"):
             data = await _next_minimax(req.goal, history, elements_dict)
-        elif await _ollama_available():
+        elif await ollama_available():
             data = await _next_ollama(req.goal, history, elements_dict)
         else:
             data = _next_keyword_fallback(req.goal, history, elements_dict)

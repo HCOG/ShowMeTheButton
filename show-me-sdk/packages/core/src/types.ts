@@ -19,6 +19,8 @@ export interface CursorConfig {
   zIndex?: number;
   offsetX?: number;
   offsetY?: number;
+  /** Diameter of the cursor dot in pixels. Default 24. */
+  size?: number;
 }
 
 export interface QueryRequest {

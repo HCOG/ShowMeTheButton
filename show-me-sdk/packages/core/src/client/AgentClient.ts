@@ -129,7 +129,8 @@ export class AgentClient {
       }
 
       // Normalise: ensure each step has a sequential `step` number
-      return (data.steps as any[]).map((s, i) => ({
+      const steps: any[] = Array.isArray(data.steps) ? data.steps : [];
+      return steps.map((s: any, i: number) => ({
         step: i + 1,
         title: s.title ?? `步骤 ${i + 1}`,
         description: s.description ?? '',
