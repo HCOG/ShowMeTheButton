@@ -10,6 +10,8 @@
 // location flow (guide()/flyToElement highlight).
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { Z_INDEX } from '../constants';
+
 export class TargetRing {
   private container: HTMLElement | null = null;
   private shadow: ShadowRoot | null = null;
@@ -37,7 +39,7 @@ export class TargetRing {
         height: '0',
         overflow: 'visible',
         pointerEvents: 'none',
-        zIndex: '2147483646',
+        zIndex: String(Z_INDEX.OVERLAY),
       });
       this.shadow = this.container.attachShadow({ mode: 'open' });
 

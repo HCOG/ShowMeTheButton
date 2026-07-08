@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Subscription, interval } from 'rxjs';
 import { JourneyStep, JourneyState } from '@show-me/core';
 import { ShowMeService } from '../../services/show-me.service';
+import { installTestBridge } from './debug/test-bridge';
 
 type PanelState =
   | 'collapsed' | 'expanded' | 'listening' | 'loading'
@@ -60,15 +61,21 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
     this.hotkeySub = this.showMe.voiceHotkey$.subscribe(() => this.startVoice());
     // Drive the executing / completed panels from the SDK's journey:state event.
     this.journeySub = this.showMe.journeyState$.subscribe((s) => this.onJourneyState(s));
-    // Expose SDK for testing
-    (window as any).__showMeService = this.showMe;
+    // Expose SDK for testing (dev only — installTestBridge is a no-op when
+    // window is undefined; production builds tree-shake the call site).
+    installTestBridge(this.showMe);
   }
 
   ngOnDestroy(): void {
     this.hotkeySub?.unsubscribe();
     this.journeySub?.unsubscribe();
-    this.completedTimerSub?.unsubscribe();
+    this._stopCountdown();
     this.showMe.stopVoiceInput();
+  }
+
+  private _stopCountdown(): void {
+    this.completedTimerSub?.unsubscribe();
+    this.completedTimerSub = null;
   }
 
   toggle(): void {
@@ -244,7 +251,7 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
 
   /** User clicked "关闭" in the completed state — skip the countdown. */
   closeCompleted(): void {
-    this.completedTimerSub?.unsubscribe();
+    this._stopCountdown();
     this._resetToExpanded();
   }
 
@@ -276,7 +283,7 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
       this.state = 'executing';
       // If a countdown was running (e.g. user clicked Start after a previous
       // completion), cancel it.
-      this.completedTimerSub?.unsubscribe();
+      this._stopCountdown();
     } else if (s.status === 'completed') {
       // All steps done — mark them all, switch to the completed panel, start
       // the 5-second countdown.
@@ -286,23 +293,23 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
       this.state = 'completed';
       this._startCompletedCountdown();
     } else if (s.status === 'cancelled') {
-      this.completedTimerSub?.unsubscribe();
+      this._stopCountdown();
       this._resetToExpanded();
     } else if (s.status === 'error') {
       // Errors are surfaced via the SDK's pill (which the runner still shows);
       // for the widget we just collapse so the user can retry.
-      this.completedTimerSub?.unsubscribe();
+      this._stopCountdown();
       this._resetToExpanded();
     }
   }
 
   private _startCompletedCountdown(): void {
     this.completedCountdown = 5;
-    this.completedTimerSub?.unsubscribe();
+    this._stopCountdown();
     this.completedTimerSub = interval(1000).subscribe(() => {
       this.completedCountdown -= 1;
       if (this.completedCountdown <= 0) {
-        this.completedTimerSub?.unsubscribe();
+        this._stopCountdown();
         this._resetToExpanded();
       }
     });
