@@ -17,7 +17,7 @@ Rules:
 - Return ONLY valid JSON, no markdown, no explanation outside JSON
 - target_id must be one of the provided element IDs
 - If nothing matches well, pick the closest one and set confidence low
-- reasoning should be concise (1-2 sentences) in the same language as the query
+- reasoning should be concise (1-2 sentences) in English (regardless of the query's language)
 - If knowledge base context is provided, use it to improve accuracy
 """
 
@@ -186,7 +186,7 @@ def _keyword_match(query: str, elements: List[Dict[str, Any]]) -> Dict[str, Any]
     return {
         "target_id": best_id,
         "confidence": min(0.5 + best_score * 0.1, 0.95),
-        "reasoning": f"关键词匹配 (无LLM模式): 与 [{label}] 最相关",
+        "reasoning": f"Keyword match (no LLM): most relevant to [{label}]",
     }
 
 
