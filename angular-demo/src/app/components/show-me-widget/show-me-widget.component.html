@@ -102,6 +102,57 @@
       <button class="smt-btn-ghost" (click)="retry()">重试</button>
     </div>
 
+    <!-- Ask-user (LLM-driven disambiguation) -->
+    <div *ngIf="state === 'ask-user' && askUserPayload" class="smt-body smt-ask">
+      <div class="smt-ask-header" *ngIf="askUserPayload.context">
+        <span class="smt-ask-icon">🤔</span>
+        <p class="smt-ask-context">{{ askUserPayload.context }}</p>
+      </div>
+      <h3 class="smt-ask-question">{{ askUserPayload.question }}</h3>
+
+      <div *ngIf="classification?.result?.suggestions?.length" class="smt-ask-suggestions">
+        <span class="smt-ask-suggestions-label">We found:</span>
+        <span *ngFor="let s of classification.result.suggestions" class="smt-ask-suggestion-chip">{{ s }}</span>
+      </div>
+
+      <div *ngIf="askUserPayload.kind !== 'text'" class="smt-ask-options">
+        <label *ngFor="let opt of askUserPayload.options"
+               class="smt-ask-option"
+               [class.is-selected]="askUserSelection === 'multi'
+                   ? askUserSelectedIds.includes(opt.id)
+                   : askUserSelectedId === opt.id">
+          <input
+            [type]="askUserSelection === 'multi' ? 'checkbox' : 'radio'"
+            name="smt-ask-choice"
+            [value]="opt.id"
+            [checked]="askUserSelection === 'multi'
+                ? askUserSelectedIds.includes(opt.id)
+                : askUserSelectedId === opt.id"
+            (change)="onAskUserChoice(opt.id)">
+          <div class="smt-ask-option-body">
+            <div class="smt-ask-option-label">{{ opt.label }}</div>
+            <div class="smt-ask-option-desc" *ngIf="opt.description">{{ opt.description }}</div>
+            <div class="smt-ask-prereqs" *ngIf="opt.prerequisites?.length">
+              <span class="smt-ask-prereqs-label">Prerequisites:</span>
+              <span *ngFor="let p of opt.prerequisites" class="smt-prereq-tag">{{ p }}</span>
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <div *ngIf="askUserPayload.kind === 'text'" class="smt-ask-text">
+        <textarea
+          [(ngModel)]="askUserTextInput"
+          [placeholder]="askUserPayload.textPlaceholder || 'Type your answer…'"
+          rows="3"></textarea>
+      </div>
+
+      <div class="smt-ask-actions">
+        <button *ngIf="askUserPayload.skippable !== false" class="smt-btn-ghost" (click)="skipAskUser()">跳过</button>
+        <button class="smt-btn-primary" (click)="confirmAskUser()">确认</button>
+      </div>
+    </div>
+
     <!-- Plan overview (centered, post-morph) -->
     <div *ngIf="state === 'plan-overview'" class="smt-body smt-plan-overview">
       <div class="smt-plan-header">

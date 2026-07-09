@@ -43,3 +43,4 @@ export type { SpeechResultCallback, SpeechErrorCallback, SpeechEndCallback } fro
 
 export * from './types';
 export * from './constants';
+export type { AskUserPayload, AskUserOption } from './types';

@@ -6,6 +6,7 @@ import { AgentClient } from './client/AgentClient';
 import { JourneyRunner, JourneyConfig, JourneyState, JourneyStep } from './journey/JourneyRunner';
 import { SpeechInput } from './voice/SpeechInput';
 import { ShowMeConfig } from './types';
+import type { AskUserPayload } from './types';
 import {
   isV2Workflow,
   migrateV1ToV2,
@@ -26,6 +27,20 @@ export interface GuideResult {
    * navigating (e.g. "Is this what you meant?"). Confirm via flyToElement().
    */
   needsConfirmation?: boolean;
+  /**
+   * LLM-driven disambiguation: when the agent decides the user's intent is
+   * ambiguous (multiple plausible matches, missing prerequisites, etc.), it
+   * populates this field with a question + options. The host UI should
+   * surface the question to the user and call `continueWithAnswer()`
+   * (or re-issue `guide()` with an enriched query) once an answer is given.
+   */
+  askUser?: AskUserPayload;
+  /**
+   * KB candidate titles that informed the LLM's disambiguation. Surfaced in
+   * the UI as small chips under the question so the user can see WHY the LLM
+   * is asking (e.g. "I'm asking because we found: model-a, model-b, model-c").
+   */
+  suggestions?: string[];
 }
 
 /** Below this confidence, guide() asks the caller to confirm before flying. */
@@ -138,15 +153,35 @@ export class ShowMeSDK {
     const result = response.result;
     const confidence = result?.confidence ?? 0;
 
+    // Agent decided the intent is ambiguous → hand the user a clarifying
+    // question. The caller (widget) renders the question panel and feeds
+    // the answer back via continueWithAnswer() or a re-issued guide().
+    if (result?.ask_user) {
+      const out: GuideResult = {
+        type: 'single',
+        reasoning: result.reasoning,
+        confidence,
+        askUser: result.ask_user as AskUserPayload,
+      };
+      if (result.suggestions && result.suggestions.length > 0) {
+        out.suggestions = result.suggestions;
+      }
+      return out;
+    }
+
     // Low confidence → don't move the cursor; let the caller confirm first (U3).
     if (result?.target_id && confidence < CONFIDENCE_CONFIRM_THRESHOLD) {
-      return {
+      const out: GuideResult = {
         type: 'single',
         reasoning: result.reasoning,
         confidence,
         targetId: result.target_id,
         needsConfirmation: true,
       };
+      if (result.suggestions && result.suggestions.length > 0) {
+        out.suggestions = result.suggestions;
+      }
+      return out;
     }
 
     if (result?.target_id) {
@@ -161,7 +196,7 @@ export class ShowMeSDK {
       type: 'single',
       reasoning: result?.reasoning,
       confidence,
-      targetId: result?.target_id,
+      targetId: result?.target_id ?? undefined,
     };
   }
 
@@ -286,7 +321,14 @@ export class ShowMeSDK {
    */
   async classify(userQuery: string): Promise<{
     type: 'single' | 'journey';
-    result?: { reasoning?: string; confidence?: number; targetId?: string; needsConfirmation?: boolean };
+    result?: {
+      reasoning?: string;
+      confidence?: number;
+      targetId?: string;
+      needsConfirmation?: boolean;
+      askUser?: AskUserPayload;
+      suggestions?: string[];
+    };
     steps?: JourneyStep[];
   }> {
     if (!this.initialized) await this.init();
@@ -306,16 +348,29 @@ export class ShowMeSDK {
     }
     const r = response.result;
     const confidence = r?.confidence ?? 0;
-    const targetId = r?.target_id;
-    return {
-      type: 'single',
-      result: {
-        reasoning: r?.reasoning,
-        confidence,
-        targetId,
-        needsConfirmation: !!targetId && confidence < CONFIDENCE_CONFIRM_THRESHOLD,
-      },
+    const targetId = r?.target_id ?? undefined;
+    const result: {
+      reasoning?: string;
+      confidence?: number;
+      targetId?: string;
+      askUser?: AskUserPayload;
+      suggestions?: string[];
+    } = {
+      reasoning: r?.reasoning,
+      confidence,
+      targetId,
     };
+    if (r?.ask_user) {
+      result.askUser = r.ask_user as AskUserPayload;
+    } else if (targetId && confidence < CONFIDENCE_CONFIRM_THRESHOLD) {
+      // Low confidence without an ask_user — caller should fall back to the
+      // simple confirm/reject dialog. We surface this via the same field
+      // path (no separate flag needed) by re-deriving from `targetId`.
+    }
+    if (r?.suggestions && r.suggestions.length > 0) {
+      result.suggestions = r.suggestions;
+    }
+    return { type: 'single', result };
   }
 
   /**

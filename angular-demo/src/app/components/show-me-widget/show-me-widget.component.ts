@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription, interval } from 'rxjs';
-import { JourneyStep, JourneyState, injectRecorderIds } from '@show-me/core';
+import { JourneyStep, JourneyState, injectRecorderIds, AskUserPayload } from '@show-me/core';
 import { ShowMeService } from '../../services/show-me.service';
 import { RecorderService } from '../../services/recorder.service';
 import { RecorderPanelComponent } from '../recorder-panel/recorder-panel.component';
@@ -14,7 +14,7 @@ type PanelState =
   | 'plan-overview'      // user is reviewing planned steps before Start
   | 'executing'          // journey is running; widget shows the step list
   | 'completed'          // all steps done; widget shows 🎉 + countdown
-  | 'result' | 'error' | 'confirm';
+  | 'result' | 'error' | 'confirm' | 'ask-user';  // ask-user: LLM asks a question
 
 @Component({
   selector: 'app-show-me-widget',
@@ -31,6 +31,32 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
   confidence = 0;
   /** Pending low-confidence match awaiting user confirmation. */
   private pendingTargetId: string | null = null;
+
+  /** Pending ask-user payload from the agent. Non-null in the 'ask-user' state. */
+  askUserPayload: AskUserPayload | null = null;
+  /** Single-select radio value (or multi-select array of selected option ids). */
+  askUserSelection: 'single' | 'multi' = 'single';
+  askUserSelectedId: string | null = null;
+  askUserSelectedIds: string[] = [];
+  /** Free-form text input (when askUserPayload.kind === 'text'). */
+  askUserTextInput = '';
+  /** Last submitted user query (used to enrich with the ask-user answer). */
+  private lastQuery = '';
+
+  /** Stashed classification result so the ask-user view can render
+   *  `suggestions` chips from `result.suggestions`. Cleared on each new
+   *  submit. */
+  classification: {
+    result?: {
+      reasoning?: string;
+      confidence?: number;
+      targetId?: string;
+      needsConfirmation?: boolean;
+      askUser?: AskUserPayload;
+      suggestions?: string[];
+    };
+    steps?: JourneyStep[];
+  } | null = null;
 
   /** Steps returned by planJourney() awaiting the user's Start. */
   planSteps: JourneyStep[] = [];
@@ -174,6 +200,7 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
     this.resultText = '';
     this.errorText = '';
     this.planSteps = [];
+    this.classification = null;
     this.planGoal = '';
 
     try {
@@ -214,6 +241,20 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
 
       // Single element — use the existing flow.
       const r = classification.result;
+      this.classification = classification;
+      // The agent asked a clarifying question first. Show the ask-user panel
+      // and remember the last query so the user can re-issue with the
+      // selected answer as additional context.
+      if (r?.askUser) {
+        this.lastQuery = this.queryText;
+        this.askUserPayload = r.askUser;
+        this.askUserSelection = r.askUser.selection ?? 'single';
+        this.askUserSelectedId = null;
+        this.askUserSelectedIds = [];
+        this.askUserTextInput = '';
+        this.state = 'ask-user';
+        return;
+      }
       if (r?.needsConfirmation && r.targetId) {
         this.resultText = r.reasoning ?? '';
         this.confidence = r.confidence ?? 0;
@@ -361,6 +402,63 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
     this.pendingTargetId = null;
     await this.showMe.flyToElement(id, this.resultText);
     this.state = 'result';
+  }
+
+  /** User submitted the ask-user answer → re-issue the query with the
+   *  chosen answer folded in as additional context. */
+  async confirmAskUser(): Promise<void> {
+    if (!this.askUserPayload) return;
+    const answer = this._collectAskUserAnswer();
+    const enriched = answer
+      ? `${this.lastQuery}\n\n[user clarification]\n${this.askUserPayload.question}\n${answer}`
+      : this.lastQuery;
+    this.askUserPayload = null;
+    this.queryText = enriched;
+    await this.submit();
+  }
+
+  /** User skipped the ask-user question. Fall back to a plain re-issue of
+   *  the original query. */
+  async skipAskUser(): Promise<void> {
+    if (!this.askUserPayload) return;
+    this.askUserPayload = null;
+    this.queryText = this.lastQuery;
+    await this.submit();
+  }
+
+  /** User picked an option in the ask-user panel. Single-select replaces;
+   *  multi-select toggles membership in the selection list. */
+  onAskUserChoice(id: string): void {
+    if (this.askUserSelection === 'multi') {
+      const i = this.askUserSelectedIds.indexOf(id);
+      if (i === -1) this.askUserSelectedIds = [...this.askUserSelectedIds, id];
+      else this.askUserSelectedIds = this.askUserSelectedIds.filter((x) => x !== id);
+    } else {
+      this.askUserSelectedId = id;
+    }
+  }
+
+  /** Format the user's answer based on the payload's selection / kind. */
+  private _collectAskUserAnswer(): string {
+    const p = this.askUserPayload;
+    if (!p) return '';
+    if (p.kind === 'text') {
+      return this.askUserTextInput.trim();
+    }
+    // 'option' kind
+    if (this.askUserSelection === 'multi') {
+      const labels = this.askUserSelectedIds
+        .map((id) => p.options.find((o) => o.id === id)?.label)
+        .filter(Boolean)
+        .join(', ');
+      return this.askUserSelectedIds.length > 0 ? labels : '';
+    }
+    if (this.askUserSelectedId) {
+      const opt = p.options.find((o) => o.id === this.askUserSelectedId);
+      return opt ? opt.label : '';
+    }
+    return '';
+  }
   }
 
   /** User rejected the low-confidence match → go back to ask again. */
