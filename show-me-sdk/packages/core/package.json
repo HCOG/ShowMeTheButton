@@ -1,5 +1,6 @@
 {
   "name": "@show-me/core",
+  "type": "module",
   "version": "0.1.0",
   "description": "ShowMeTheButton Core SDK - Framework-agnostic core functionality",
   "main": "./dist/index.js",

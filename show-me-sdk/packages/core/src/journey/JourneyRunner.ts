@@ -498,6 +498,50 @@ export class JourneyRunner {
     this.onStateChange?.(s);
     this.eventBus.emit('journey:state', s);
   }
+
+  // ── Public helpers used by WorkflowExecutor (v2) ───────────────────────
+
+  /**
+   * Locate an element by a free-form natural-language query, fly the AI
+   * cursor to it, then wait for the user to perform the action (or for the
+   * timeout to expire). Resolves when the user triggers progression; rejects
+   * on timeout unless `optional` is true.
+   */
+  async flyToAndWaitForProgression(
+    query: string,
+    options: { timeout?: number; optional?: boolean } = {},
+  ): Promise<void> {
+    await this.domScanner.refresh();
+    const elements = this.domScanner.getElements();
+    // For now we match by label substring (a real product would call the
+    // agent's /query endpoint for LLM-based resolution; keep this minimal).
+    const lowered = query.toLowerCase();
+    const match = elements.find((e) => e.label.toLowerCase().includes(lowered))
+      ?? elements[0];
+    if (!match) {
+      if (options.optional) return;
+      throw new Error(`No element found for query: ${query}`);
+    }
+
+    await this.cursorEngine.flyTo(match.element);
+
+    if (!this.ring) this.ring = new TargetRing();
+    this.ring.show(match.element);
+
+    const detector = new ProgressionDetector();
+    this.detector = detector;
+    const timeoutMs = (options.timeout ?? 60) * 1000;
+    try {
+      await Promise.race([
+        detector.waitForAction(match.element),
+        sleep(timeoutMs).then(() => Promise.reject(new Error('progression timeout'))),
+      ]);
+    } catch (err) {
+      if (!options.optional) throw err;
+    } finally {
+      this.detector = null;
+    }
+  }
 }
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }

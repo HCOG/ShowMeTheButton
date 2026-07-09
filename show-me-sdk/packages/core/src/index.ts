@@ -12,6 +12,9 @@ export {
   isV2Workflow,
   topologicalNodes,
 } from './journey/workflow';
+export { WorkflowExecutor } from './journey/workflow-executor';
+export { evaluateCondition } from './journey/condition-evaluator';
+export { extractOutput } from './journey/output-extractor';
 export type {
   Workflow,
   WorkflowV2,
@@ -29,6 +32,10 @@ export type {
   OutputExtractor,
   LegacyStep,
   JsonValue,
+  ExecContext,
+  WorkflowRunStatus,
+  NodeRunStatus,
+  WorkflowState,
 } from './types/workflow';
 export { SpeechInput } from './voice/SpeechInput';
 export type { SpeechResultCallback, SpeechErrorCallback, SpeechEndCallback } from './voice/SpeechInput';
