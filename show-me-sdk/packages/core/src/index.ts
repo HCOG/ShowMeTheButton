@@ -1,5 +1,6 @@
 export { EventBus, SDK_EVENTS } from './bus/EventBus';
 export { DOMScanner } from './scanner/DOMScanner';
+export { generateSelector, injectRecorderIds } from './scanner/selector';
 export { CursorEngine } from './cursor/CursorEngine';
 export { AgentClient } from './client/AgentClient';
 export { ShowMeSDK } from './sdk';

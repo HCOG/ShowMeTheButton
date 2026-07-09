@@ -50,6 +50,24 @@ $bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 }
 
+// Recorder FAB: secondary color, smaller, positioned slightly to the
+// left of the main FAB. Hidden in production via environment.recorderEnabled.
+.smt-fab--recorder {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  background: rgba(102, 126, 234, 0.15);
+  color: $primary;
+  margin-right: 64px;     // sits to the left of the main FAB
+  border: 1.5px solid rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.18);
+  &:hover {
+    background: rgba(102, 126, 234, 0.25);
+    transform: scale(1.05);
+  }
+}
+
 // --- Panel ---
 .smt-panel {
   width: 320px;

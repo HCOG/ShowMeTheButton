@@ -9,6 +9,18 @@
     🎯
   </button>
 
+  <!-- Recorder FAB (dev only — hidden in production via environment.recorderEnabled) -->
+  <button
+    *ngIf="state === 'collapsed' && recorderEnabled"
+    class="smt-fab smt-fab--recorder"
+    (click)="toggleRecorder()"
+    title="录制新 workflow (dev mode)">
+    🎙
+  </button>
+
+  <!-- Recorder panel (rendered when active) -->
+  <app-recorder-panel *ngIf="recorderActive"></app-recorder-panel>
+
   <!-- Expanded panel -->
   <div *ngIf="state !== 'collapsed'" class="smt-panel">
     <div class="smt-panel-header">

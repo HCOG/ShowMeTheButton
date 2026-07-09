@@ -1,0 +1,58 @@
+<div class="smt-recorder-overlay">
+  <header class="smt-recorder-header">
+    <div class="smt-recorder-title">
+      <span class="smt-recorder-dot"></span>
+      录制中
+      <span class="smt-recorder-count">({{ steps.length }})</span>
+    </div>
+    <div class="smt-recorder-actions">
+      <button class="smt-btn-sm" (click)="addWait()" title="在当前位置插入 wait 节点">+ wait</button>
+      <button class="smt-btn-sm" (click)="addBranch()" title="插入 branch 节点">+ branch</button>
+      <button class="smt-btn-sm smt-btn-danger" (click)="cancel()">取消</button>
+    </div>
+  </header>
+
+  <ol class="smt-step-list" *ngIf="steps.length > 0; else empty">
+    <li *ngFor="let s of steps; trackBy: trackByStep" class="smt-step-row" [class.is-branch]="s.type === 'branch'">
+      <span class="smt-step-num" [class.action]="s.type === 'action'" [class.wait]="s.type === 'wait'" [class.branch]="s.type === 'branch'">
+        <ng-container [ngSwitch]="s.type">
+          <span *ngSwitchCase="'action'">{{ s.step }}</span>
+          <span *ngSwitchCase="'wait'">⏱</span>
+          <span *ngSwitchCase="'branch'">⎇</span>
+        </ng-container>
+      </span>
+      <div class="smt-step-body">
+        <div class="smt-step-title" [title]="s.selector || s.label">{{ s.title || s.label }}</div>
+        <div class="smt-step-sub" *ngIf="s.description">{{ s.description }}</div>
+        <div class="smt-step-prereqs" *ngIf="s.prerequisites.length > 0">
+          <span class="smt-prereq-label">前置:</span>
+          <span *ngFor="let p of s.prerequisites" class="smt-prereq-tag">{{ p }}</span>
+        </div>
+      </div>
+    </li>
+  </ol>
+  <ng-template #empty>
+    <p class="smt-empty">点页面任意按钮开始记录。<br/>每次点击会高亮元素 + 弹窗填注释。</p>
+  </ng-template>
+
+  <div class="smt-prereq-picker" *ngIf="steps.length >= 2">
+    <label class="smt-prereq-label">标记前置条件 (依赖):</label>
+    <div class="smt-prereq-row">
+      <select [(ngModel)]="fromStep" class="smt-prereq-select">
+        <option *ngFor="let s of steps" [ngValue]="s.step">Step {{ s.step }}</option>
+      </select>
+      <span>需要</span>
+      <select [(ngModel)]="toStep" class="smt-prereq-select">
+        <option *ngFor="let s of steps" [ngValue]="s.step">Step {{ s.step }}</option>
+      </select>
+      <button class="smt-btn-sm" (click)="togglePrereq(fromStep, toStep)">切换</button>
+    </div>
+  </div>
+
+  <footer class="smt-recorder-footer" *ngIf="steps.length > 0">
+    <button class="smt-btn-primary" (click)="openSummary()">完成 ✓</button>
+  </footer>
+
+  <app-recorder-annotation></app-recorder-annotation>
+  <app-recorder-summary *ngIf="showSummary" (closed)="closeSummary()"></app-recorder-summary>
+</div>

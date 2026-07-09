@@ -1,0 +1,54 @@
+<div class="smt-anno-backdrop" *ngIf="step" (click)="dismiss()"></div>
+<div class="smt-anno-modal" *ngIf="step">
+  <header>
+    <span class="smt-anno-num">Step {{ step.step }}</span>
+    <span class="smt-anno-label">{{ step.label }}</span>
+    <button class="smt-anno-close" (click)="dismiss()">✕</button>
+  </header>
+
+  <div class="smt-anno-body">
+    <label>
+      <span>节点类型</span>
+      <select [(ngModel)]="draft.type" class="smt-anno-input">
+        <option value="action">action (点击/输入)</option>
+        <option value="wait">wait (等待条件)</option>
+        <option value="branch">branch (分支判断)</option>
+      </select>
+    </label>
+
+    <label>
+      <span>标题 *</span>
+      <input type="text" [(ngModel)]="draft.title" class="smt-anno-input" placeholder="短句描述这个步骤做什么" />
+    </label>
+
+    <label>
+      <span>注释 / tooltip</span>
+      <textarea
+        [(ngModel)]="draft.description"
+        rows="3"
+        class="smt-anno-input"
+        placeholder="为什么做这一步? 用户会看到什么? 完成后效果?"></textarea>
+    </label>
+
+    <label>
+      <span>Hint (可选, 显示在光标到达时的提示)</span>
+      <input type="text" [(ngModel)]="draft.hint" class="smt-anno-input" placeholder="如: '点击此处开始添加新报表'" />
+    </label>
+
+    <div *ngIf="draft.type === 'branch'" class="smt-anno-branch">
+      <label>
+        <span>分支目标 (满足条件时跳到)</span>
+        <select [(ngModel)]="draft.branchGoto" class="smt-anno-input">
+          <option [ngValue]="null">— 选择步骤 —</option>
+          <option *ngFor="let s of allSteps" [ngValue]="s.step">Step {{ s.step }} — {{ s.title || s.label }}</option>
+        </select>
+      </label>
+      <p class="smt-anno-hint">条件描述已自动写入 description 字段（运行时用 param-truthy 简化）</p>
+    </div>
+  </div>
+
+  <footer>
+    <button class="smt-anno-cancel" (click)="dismiss()">取消</button>
+    <button class="smt-anno-save" (click)="save()">保存</button>
+  </footer>
+</div>

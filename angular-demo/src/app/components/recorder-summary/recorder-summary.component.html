@@ -1,0 +1,45 @@
+<div class="smt-sum-backdrop" (click)="cancel()"></div>
+<div class="smt-sum-modal">
+  <header>
+    <h2>完成录制</h2>
+    <p class="smt-sum-sub">确认 workflow 描述与意图, 用于 agent 匹配 user prompt</p>
+  </header>
+
+  <div class="smt-sum-body">
+    <label>
+      <span>标题 *</span>
+      <input type="text" [(ngModel)]="title" placeholder="如: 导出报表为 PDF" />
+    </label>
+    <label>
+      <span>当前页面</span>
+      <input type="text" [value]="currentPage" disabled />
+    </label>
+    <label>
+      <span>Workflow 描述</span>
+      <textarea
+        [(ngModel)]="description"
+        rows="2"
+        placeholder="一句话说明这个 workflow 做什么 (agent 用来搜索匹配)"></textarea>
+    </label>
+    <label>
+      <span>预计耗时</span>
+      <input type="text" [(ngModel)]="estimatedTime" placeholder="如: 30秒 / 5-10分钟" />
+    </label>
+    <label>
+      <span>Tags (逗号分隔)</span>
+      <input type="text" [(ngModel)]="tagsInput" placeholder="如: export, pdf, report" />
+    </label>
+    <label>
+      <span>用户意图描述 *</span>
+      <textarea
+        [(ngModel)]="intent"
+        rows="3"
+        placeholder="当用户说'我要导出这个报表'或'把数据保存为 PDF'时, 这个 workflow 适用。自然语言描述, agent 用 LLM 匹配"></textarea>
+    </label>
+  </div>
+
+  <footer>
+    <button class="smt-sum-cancel" (click)="cancel()">取消</button>
+    <button class="smt-sum-save" (click)="save()">保存并下载</button>
+  </footer>
+</div>

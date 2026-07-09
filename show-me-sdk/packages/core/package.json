@@ -19,7 +19,8 @@
   "scripts": {
     "build": "tsc --project tsconfig.json && vite build",
     "dev": "vite build --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
   },
   "keywords": [
     "dom-scanner",
