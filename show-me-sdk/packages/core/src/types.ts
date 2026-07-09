@@ -53,3 +53,32 @@ export interface ShowMeConfig {
   cursorStyle?: CursorConfig;
   debug?: boolean;
 }
+
+// ── Ask-user payload (LLM-driven disambiguation) ───────────────────────────
+
+/** One option in an ask-user prompt. */
+export interface AskUserOption {
+  /** Stable id; the answer is sent back to the agent as `{ id: choice }`. */
+  id: string;
+  label: string;
+  description?: string;
+  /** Optional prerequisite markers shown as chips ("Have you prepared the dataset?"). */
+  prerequisites?: string[];
+}
+
+/** A generic question the LLM wants the user to answer before continuing. */
+export interface AskUserPayload {
+  /** The actual question shown to the user. */
+  question: string;
+  /** Optional helper text explaining why the LLM is asking. */
+  context?: string;
+  options: AskUserOption[];
+  /** UI selection mode. Default 'single' (radio buttons). */
+  selection?: 'single' | 'multi';
+  /** 'option' (default) renders the options above; 'text' shows a free-form input. */
+  kind?: 'option' | 'text';
+  /** Placeholder for the free-form input (only when kind === 'text'). */
+  textPlaceholder?: string;
+  /** Whether the user can skip without answering. Default true. */
+  skippable?: boolean;
+}

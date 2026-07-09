@@ -1,4 +1,4 @@
-import { QueryRequest, QueryResponse } from '../types';
+import { QueryRequest, QueryResponse, AskUserPayload } from '../types';
 import { JourneyStep } from '../journey/JourneyRunner';
 
 export type GuideType = 'single' | 'journey';
@@ -7,7 +7,13 @@ export interface GuideResponse {
   success: boolean;
   type?: GuideType;
   /** Populated when type === 'single' */
-  result?: { target_id: string; confidence: number; reasoning: string };
+  result?: {
+    target_id?: string | null;       // null when ask_user is set
+    confidence: number;
+    reasoning: string;
+    ask_user?: AskUserPayload | null;
+    suggestions?: string[] | null;
+  };
   /** Populated when type === 'journey' */
   steps?: JourneyStep[];
   error?: string;

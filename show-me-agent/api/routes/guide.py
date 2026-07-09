@@ -40,10 +40,29 @@ class GuideRequest(BaseModel):
     context: Optional[GuideContext] = None
 
 
+class AskUserOption(BaseModel):
+    id: str
+    label: str
+    description: Optional[str] = None
+    prerequisites: Optional[List[str]] = None
+
+
+class AskUserPayload(BaseModel):
+    question: str
+    context: Optional[str] = None
+    options: List[AskUserOption]
+    selection: Optional[str] = 'single'   # 'single' | 'multi'
+    kind: Optional[str] = 'option'        # 'option' | 'text'
+    text_placeholder: Optional[str] = None
+    skippable: Optional[bool] = True
+
+
 class SingleResult(BaseModel):
-    target_id: str
+    target_id: Optional[str] = None       # null when ask_user is set
     confidence: float
     reasoning: str
+    ask_user: Optional[AskUserPayload] = None
+    suggestions: Optional[List[str]] = None  # KB candidates that informed the ask
 
 
 class JourneyStep(BaseModel):
@@ -83,9 +102,29 @@ Response format
 For SINGLE, return ONLY this JSON:
 {
   "type": "single",
-  "target_id": "<id from elements list>",
+  "target_id": "<id from elements list, or null when asking>",
   "confidence": <0.0–1.0>,
-  "reasoning": "<one sentence in English>"
+  "reasoning": "<one sentence in English>",
+  "ask_user": <null OR ask_user object below>,
+  "suggestions": <null OR ["kb candidate title 1", "kb candidate title 2", ...]>
+}
+
+ask_user object (only when the user's intent is ambiguous):
+{
+  "question": "<one clear question, in English>",
+  "context": "<optional one-line helper text explaining why we're asking>",
+  "selection": "single" | "multi",
+  "kind": "option" | "text",
+  "options": [
+    {
+      "id": "<stable option id, e.g. 'logistic-regression'>",
+      "label": "<button label the user sees>",
+      "description": "<optional tooltip>",
+      "prerequisites": <null OR ["What data do you have?", ...]>
+    }
+  ],
+  "text_placeholder": "<only when kind='text'>",
+  "skippable": true | false
 }
 
 For JOURNEY, return ONLY this JSON (2–6 steps, no more):
@@ -110,6 +149,12 @@ Rules:
   page elements and may quote the element label verbatim.
 - Journey "query" fields must relate to elements that actually exist in the provided list
 - If nothing matches well for single, still pick the closest and lower the confidence
+- DISAMBIGUATION: when the user's intent could map to multiple elements OR
+  you'd need to ask about prerequisites (e.g. "did you prepare the dataset?"),
+  populate the `ask_user` field with a question and 2-4 options. Set
+  `target_id` to null in that case. Include `suggestions` with the KB candidate
+  titles that informed the question. Do NOT ask trivial things — only ask
+  when the answer would meaningfully change which element to pick.
 """
 
 USER_PROMPT_TEMPLATE = """User request: "{query}"
