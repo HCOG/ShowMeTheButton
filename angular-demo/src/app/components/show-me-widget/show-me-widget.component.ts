@@ -42,6 +42,10 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
   askUserTextInput = '';
   /** Last submitted user query (used to enrich with the ask-user answer). */
   private lastQuery = '';
+  /** How many ask-user rounds we've been through on the current query.
+   *  Caps at MAX_ASK_ROUNDS to prevent infinite back-and-forth. */
+  private askRoundCount = 0;
+  private static MAX_ASK_ROUNDS = 3;
 
   /** Stashed classification result so the ask-user view can render
    *  `suggestions` chips from `result.suggestions`. Cleared on each new
@@ -201,6 +205,7 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
     this.errorText = '';
     this.planSteps = [];
     this.classification = null;
+    this.askRoundCount = 0;
     this.planGoal = '';
 
     try {
@@ -242,36 +247,46 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
       // Single element — use the existing flow.
       const r = classification.result;
       this.classification = classification;
-      // The agent asked a clarifying question first. Show the ask-user panel
-      // and remember the last query so the user can re-issue with the
-      // selected answer as additional context.
-      if (r?.askUser) {
-        this.lastQuery = this.queryText;
-        this.askUserPayload = r.askUser;
-        this.askUserSelection = r.askUser.selection ?? 'single';
-        this.askUserSelectedId = null;
-        this.askUserSelectedIds = [];
-        this.askUserTextInput = '';
-        this.state = 'ask-user';
-        return;
-      }
-      if (r?.needsConfirmation && r.targetId) {
-        this.resultText = r.reasoning ?? '';
-        this.confidence = r.confidence ?? 0;
-        this.pendingTargetId = r.targetId;
-        this.state = 'confirm';
-        return;
-      }
-      if (r?.targetId) {
-        await this.showMe.flyToElement(r.targetId, r.reasoning);
-      }
-      this.resultText = r?.reasoning ?? '';
-      this.confidence = r?.confidence ?? 0;
-      this.state = 'result';
+      this._applySingleResult(r);
     } catch (err: any) {
       this.errorText = err.message || '查询失败，请检查Agent服务是否运行';
       this.state = 'error';
     }
+  }
+
+  /** Shared handler for a single-type classification result. Used by both
+   *  the initial submit() and the ask-user round-trip. */
+  private _applySingleResult(r: {
+    reasoning?: string;
+    confidence?: number;
+    targetId?: string;
+    needsConfirmation?: boolean;
+    askUser?: AskUserPayload;
+    suggestions?: string[];
+  } | undefined): void {
+    if (r?.askUser) {
+      this.lastQuery = this.queryText;
+      this.askUserPayload = r.askUser;
+      this.askUserSelection = r.askUser.selection ?? 'single';
+      this.askUserSelectedId = null;
+      this.askUserSelectedIds = [];
+      this.askUserTextInput = '';
+      this.state = 'ask-user';
+      return;
+    }
+    if (r?.needsConfirmation && r.targetId) {
+      this.resultText = r.reasoning ?? '';
+      this.confidence = r.confidence ?? 0;
+      this.pendingTargetId = r.targetId;
+      this.state = 'confirm';
+      return;
+    }
+    if (r?.targetId) {
+      void this.showMe.flyToElement(r.targetId, r.reasoning);
+    }
+    this.resultText = r?.reasoning ?? '';
+    this.confidence = r?.confidence ?? 0;
+    this.state = 'result';
   }
 
   /** User clicked "▶ 开始执行" in the centered overview → run the journey. */
@@ -405,16 +420,51 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
   }
 
   /** User submitted the ask-user answer → re-issue the query with the
-   *  chosen answer folded in as additional context. */
+   *  chosen answer folded in as additional context. The server signals
+   *  `askUser.keepGoing === true` to chain another question; we cap
+   *  total rounds at MAX_ASK_ROUNDS regardless. */
   async confirmAskUser(): Promise<void> {
     if (!this.askUserPayload) return;
+    this.askRoundCount += 1;
+    if (this.askRoundCount > ShowMeWidgetComponent.MAX_ASK_ROUNDS) {
+      this.errorText = 'Maximum clarification rounds reached; please refine your query.';
+      this.state = 'error';
+      this.askUserPayload = null;
+      return;
+    }
     const answer = this._collectAskUserAnswer();
     const enriched = answer
       ? `${this.lastQuery}\n\n[user clarification]\n${this.askUserPayload.question}\n${answer}`
       : this.lastQuery;
     this.askUserPayload = null;
     this.queryText = enriched;
-    await this.submit();
+    // Re-issue WITHOUT resetting askRoundCount — this is a continuation of
+    // the same query. Bypass the full submit() flow so we don't blow away
+    // the counter; go through guide + classify directly.
+    this.state = 'loading';
+    try {
+      await this.showMe.guide(this.queryText);
+      const classification = await this.showMe.classify(this.queryText);
+      this.classification = classification;
+      if (classification.type === 'journey') {
+        // The agent now thinks the user is doing a multi-step workflow.
+        // Surface the plan-overview so the user can re-launch from the top.
+        const steps: JourneyStep[] = classification.steps ?? [];
+        if (steps.length) {
+          this.planSteps = steps;
+          this.planGoal = this.queryText;
+          this.state = 'plan-overview';
+        } else {
+          this.errorText = '未能为该目标规划步骤';
+          this.state = 'error';
+        }
+      } else {
+        this._applySingleResult(classification.result);
+      }
+    } catch (err: any) {
+      this.errorText = err.message || '查询失败';
+      this.state = 'error';
+    }
   }
 
   /** User skipped the ask-user question. Fall back to a plain re-issue of
