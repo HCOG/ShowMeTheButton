@@ -2,8 +2,11 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription, interval } from 'rxjs';
-import { JourneyStep, JourneyState } from '@show-me/core';
+import { JourneyStep, JourneyState, injectRecorderIds } from '@show-me/core';
 import { ShowMeService } from '../../services/show-me.service';
+import { RecorderService } from '../../services/recorder.service';
+import { RecorderPanelComponent } from '../recorder-panel/recorder-panel.component';
+import { environment } from '../../../environments/environment';
 import { installTestBridge } from './debug/test-bridge';
 
 type PanelState =
@@ -16,7 +19,7 @@ type PanelState =
 @Component({
   selector: 'app-show-me-widget',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RecorderPanelComponent],
   templateUrl: './show-me-widget.component.html',
   styleUrls: ['./show-me-widget.component.scss'],
 })
@@ -47,10 +50,15 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
   completedCountdown = 5;
   private completedTimerSub: Subscription | null = null;
 
+  /** ShowMeRecorderMode — dev only, gated by environment.recorderEnabled. */
+  readonly recorderEnabled = environment.recorderEnabled;
+  recorderActive = false;
+  private recorderSub: Subscription | null = null;
+
   private hotkeySub?: Subscription;
   private journeySub?: Subscription;
 
-  constructor(public showMe: ShowMeService) {}
+  constructor(public showMe: ShowMeService, private recorder: RecorderService) {}
 
   get voiceSupported(): boolean {
     return this.showMe.isVoiceSupported;
@@ -70,6 +78,7 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
     this.hotkeySub?.unsubscribe();
     this.journeySub?.unsubscribe();
     this._stopCountdown();
+    this.recorderSub?.unsubscribe();
     this.showMe.stopVoiceInput();
   }
 
@@ -87,6 +96,26 @@ export class ShowMeWidgetComponent implements OnInit, OnDestroy {
       this.queryText = '';
       this.resultText = '';
       this.errorText = '';
+    }
+  }
+
+  /**
+   * Toggle the workflow recorder. Stamps interactive elements with
+   * `data-show-me-target-id` and shows the recorder panel. Only available
+   * when the build-time `environment.recorderEnabled` flag is on (dev).
+   */
+  toggleRecorder(): void {
+    if (!this.recorderEnabled) return;
+    if (this.recorderActive) {
+      this.recorder.cancel();
+      this.recorderActive = false;
+    } else {
+      this.recorder.start(window.location.pathname);
+      this.recorderActive = true;
+      this.recorderSub?.unsubscribe();
+      this.recorderSub = this.recorder.enabled$.subscribe((on) => {
+        this.recorderActive = on;
+      });
     }
   }
 

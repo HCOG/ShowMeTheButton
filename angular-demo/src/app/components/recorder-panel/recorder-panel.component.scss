@@ -1,0 +1,200 @@
+.smt-recorder-overlay {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  width: 360px;
+  max-height: 60vh;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  z-index: 99998;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  color: #1a202c;
+}
+
+.smt-recorder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+.smt-recorder-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.smt-recorder-dot {
+  width: 8px;
+  height: 8px;
+  background: #ff5b5b;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(255, 91, 91, 0.6);
+  animation: smt-recorder-pulse 1.2s ease-in-out infinite;
+}
+@keyframes smt-recorder-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 91, 91, 0.6); }
+  50%      { box-shadow: 0 0 0 8px rgba(255, 91, 91, 0); }
+}
+.smt-recorder-count {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-left: 4px;
+}
+.smt-recorder-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.smt-btn-sm {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: none;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.smt-btn-sm:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+.smt-btn-sm.smt-btn-danger {
+  background: rgba(255, 91, 91, 0.4);
+}
+.smt-btn-sm.smt-btn-danger:hover {
+  background: rgba(255, 91, 91, 0.7);
+}
+
+.smt-step-list {
+  list-style: none;
+  padding: 8px;
+  margin: 0;
+  flex: 1;
+  overflow-y: auto;
+  max-height: 280px;
+}
+.smt-step-row {
+  display: flex;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  background: #f7fafc;
+  border-radius: 6px;
+  align-items: flex-start;
+  font-size: 12px;
+}
+.smt-step-row.is-branch {
+  background: #fef5e7;
+}
+.smt-step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #4a5568;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.smt-step-num.action { background: #667eea; color: white; }
+.smt-step-num.wait   { background: #ed8936; color: white; }
+.smt-step-num.branch { background: #d69e2e; color: white; }
+
+.smt-step-body { flex: 1; min-width: 0; }
+.smt-step-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.smt-step-sub {
+  font-size: 11px;
+  color: #718096;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.smt-step-prereqs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 3px;
+  align-items: center;
+}
+.smt-prereq-label {
+  font-size: 10px;
+  color: #a0aec0;
+  margin-right: 2px;
+}
+.smt-prereq-tag {
+  font-size: 10px;
+  background: #fed7d7;
+  color: #c53030;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: ui-monospace, 'SF Mono', monospace;
+}
+
+.smt-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: #a0aec0;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.smt-prereq-picker {
+  padding: 8px 12px;
+  border-top: 1px solid #e2e8f0;
+  background: #f7fafc;
+  border-radius: 0;
+}
+.smt-prereq-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #4a5568;
+}
+.smt-prereq-select {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  font-size: 12px;
+  background: white;
+  font-family: inherit;
+}
+
+.smt-recorder-footer {
+  padding: 10px 12px;
+  border-top: 1px solid #e2e8f0;
+  text-align: right;
+}
+.smt-btn-primary {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.smt-btn-primary:hover { opacity: 0.9; }

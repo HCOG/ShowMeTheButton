@@ -1,0 +1,129 @@
+.smt-anno-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 99999;
+}
+.smt-anno-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  color: #1a202c;
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .smt-anno-num {
+    background: #667eea;
+    color: white;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .smt-anno-label {
+    flex: 1;
+    color: #4a5568;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .smt-anno-close {
+    background: transparent;
+    border: none;
+    color: #a0aec0;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 6px;
+  }
+}
+
+.smt-anno-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    > span {
+      font-size: 11px;
+      color: #718096;
+      font-weight: 500;
+    }
+  }
+}
+
+.smt-anno-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.18);
+  }
+  textarea { resize: vertical; min-height: 60px; }
+}
+
+.smt-anno-branch {
+  padding: 8px 10px;
+  background: #fef5e7;
+  border-radius: 6px;
+}
+.smt-anno-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #975a16;
+  line-height: 1.4;
+}
+
+footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 10px 16px;
+  border-top: 1px solid #e2e8f0;
+}
+.smt-anno-cancel, .smt-anno-save {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.smt-anno-cancel {
+  background: transparent;
+  color: #4a5568;
+  border: 1px solid #cbd5e0;
+}
+.smt-anno-save {
+  background: #667eea;
+  color: white;
+}
+.smt-anno-save:hover { opacity: 0.9; }
