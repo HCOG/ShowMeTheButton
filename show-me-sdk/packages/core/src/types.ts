@@ -81,4 +81,15 @@ export interface AskUserPayload {
   textPlaceholder?: string;
   /** Whether the user can skip without answering. Default true. */
   skippable?: boolean;
+  /**
+   * Server-driven multi-round hint: when true, the agent has another
+   * question queued. The widget should re-issue `guide()` with the
+   * answer folded in once the user confirms. The agent is responsible
+   * for setting this to false (or omitting it) on the final question
+   * when it can resolve the original request.
+   *
+   * On the wire this serialises as `keep_going` (Python reserved-word
+   * workaround); the field name here is the camelCase alias.
+   */
+  keepGoing?: boolean;
 }

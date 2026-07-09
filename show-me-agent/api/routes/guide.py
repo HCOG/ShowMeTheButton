@@ -55,6 +55,9 @@ class AskUserPayload(BaseModel):
     kind: Optional[str] = 'option'        # 'option' | 'text'
     text_placeholder: Optional[str] = None
     skippable: Optional[bool] = True
+    # True when the agent has another question queued; widget re-issues
+    # guide() with the previous answer folded in as context.
+    keep_going: Optional[bool] = None
 
 
 class SingleResult(BaseModel):
@@ -155,14 +158,31 @@ Rules:
   `target_id` to null in that case. Include `suggestions` with the KB candidate
   titles that informed the question. Do NOT ask trivial things — only ask
   when the answer would meaningfully change which element to pick.
+- CHAINING: if the user already answered a previous question, the
+  `[user clarification]` block in the user message is the answer. Use it
+  to narrow the KB candidates. If you still have another meaningful
+  question, set `ask_user.continue = true` and re-issue. If you're
+  satisfied, omit `ask_user` and return the best single result.
 """
+
+
+def _rag_context(query: str, n: int = 3) -> list:
+    """Best-effort KB retrieval. Returns [] on any failure so the call
+    site never has to special-case ChromaDB being absent or empty."""
+    try:
+        from engine.rag import search
+        return search(query, n_results=n)
+    except Exception:
+        # ChromaDB not installed, collection empty, ingest not run, etc.
+        # Degrade silently — the LLM still works without KB context.
+        return []
 
 USER_PROMPT_TEMPLATE = """User request: "{query}"
 
 Available UI elements on this page:
 {elements_json}
 
-Decide: single or journey? Return JSON only."""
+{rag_context}Decide: single or journey? Return JSON only."""
 
 
 def _build_prompt(query: str, elements: list) -> str:
@@ -170,9 +190,19 @@ def _build_prompt(query: str, elements: list) -> str:
         {"id": e.get("id"), "label": e.get("label"), "type": e.get("type"), "text": e.get("text", "")}
         for e in elements
     ]
+    rag_docs = _rag_context(query)
+    rag_block = ""
+    if rag_docs:
+        rag_block = (
+            "Relevant knowledge-base candidates (use these to ground "
+            "the ask_user question):\n"
+            + "\n---\n".join(rag_docs)
+            + "\n\n"
+        )
     return USER_PROMPT_TEMPLATE.format(
         query=query,
         elements_json=json.dumps(simplified, ensure_ascii=False, indent=2),
+        rag_context=rag_block,
     )
 
 

@@ -108,7 +108,12 @@
         <span class="smt-ask-icon">🤔</span>
         <p class="smt-ask-context">{{ askUserPayload.context }}</p>
       </div>
-      <h3 class="smt-ask-question">{{ askUserPayload.question }}</h3>
+      <h3 class="smt-ask-question">
+        {{ askUserPayload.question }}
+        <span class="smt-ask-round-badge" *ngIf="askRoundCount > 0">
+          Round {{ askRoundCount }} of 3
+        </span>
+      </h3>
 
       <div *ngIf="classification?.result?.suggestions?.length" class="smt-ask-suggestions">
         <span class="smt-ask-suggestions-label">We found:</span>
