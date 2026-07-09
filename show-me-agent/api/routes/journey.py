@@ -70,7 +70,7 @@ USER_PROMPT_TEMPLATE = """User's goal: "{goal}"
 UI elements currently on the page:
 {elements_json}
 
-Return JSON exactly like this (no markdown):
+{rag_context}Return JSON exactly like this (no markdown):
 {{
   "steps": [
     {{
@@ -83,14 +83,38 @@ Return JSON exactly like this (no markdown):
 }}"""
 
 
-def _build_prompt(goal: str, elements: list) -> str:
+def _rag_context(query: str, n: int = 3) -> list:
+    """Best-effort KB retrieval. Returns [] on any failure (ChromaDB absent,
+    collection empty, ingest not run) so the call site never has to
+    special-case. Mirrors the helper in guide.py."""
+    try:
+        from engine.rag import search
+        return search(query, n_results=n)
+    except Exception:
+        return []
+
+
+def _build_rag_block(docs: list) -> str:
+    if not docs:
+        return ""
+    return (
+        "Relevant knowledge-base candidates (use these to ground the next "
+        "step or question):\n"
+        + "\n---\n".join(docs)
+        + "\n\n"
+    )
+
+
+def _build_prompt(goal: str, elements: list, query: str | None = None) -> str:
     simplified = [
         {"id": e.get("id"), "label": e.get("label"), "type": e.get("type"), "text": e.get("text", "")}
         for e in elements
     ]
+    rag_docs = _rag_context(query or goal)
     return USER_PROMPT_TEMPLATE.format(
         goal=goal,
         elements_json=json.dumps(simplified, ensure_ascii=False, indent=2),
+        rag_context=_build_rag_block(rag_docs),
     )
 
 
@@ -266,7 +290,7 @@ Steps already completed ({n_done}):
 UI elements on the CURRENT page:
 {elements_json}
 
-Return JSON exactly like this (no markdown):
+{rag_context}Return JSON exactly like this (no markdown):
 {{
   "done": <true|false>,
   "reasoning": "<why this step, or why we're done>",
@@ -286,11 +310,17 @@ def _build_next_prompt(goal: str, history: list, elements: list) -> str:
         for e in elements
     ]
     hist = [{"title": h.get("title"), "description": h.get("description", "")} for h in history]
+    # RAG query: enrich the goal with the most recent step's title so
+    # next-step retrieval tracks the user's progression through the workflow.
+    recent = hist[-1].get("title", "") if hist else ""
+    rag_query = f"{goal} :: {recent}" if recent else goal
+    rag_docs = _rag_context(rag_query)
     return NEXT_STEP_USER_TEMPLATE.format(
         goal=goal,
         n_done=len(hist),
         history_json=json.dumps(hist, ensure_ascii=False, indent=2),
         elements_json=json.dumps(simplified, ensure_ascii=False, indent=2),
+        rag_context=_build_rag_block(rag_docs),
     )
 
 
