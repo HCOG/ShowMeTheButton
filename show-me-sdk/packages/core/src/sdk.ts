@@ -6,6 +6,12 @@ import { AgentClient } from './client/AgentClient';
 import { JourneyRunner, JourneyConfig, JourneyState, JourneyStep } from './journey/JourneyRunner';
 import { SpeechInput } from './voice/SpeechInput';
 import { ShowMeConfig } from './types';
+import {
+  isV2Workflow,
+  migrateV1ToV2,
+  validateWorkflowV2,
+} from './journey/workflow';
+import type { Workflow, WorkflowState } from './types/workflow';
 
 export interface GuideResult {
   type: 'single' | 'journey';
@@ -363,6 +369,39 @@ export class ShowMeSDK {
     // When silent=true, the caller (typically a custom widget) is rendering
     // its own HUD and the SDK should NOT mount the bottom-left JourneyPill.
     await this.journey.startIterative(goal, seedSteps, { silent: options?.silent });
+  }
+
+  /**
+   * Run a v2 (or v1, auto-migrated) workflow. Emits `workflow:state` events
+   * on the SDK's EventBus for the host to render. Returns when the workflow
+   * reaches a terminal status (succeeded / failed / cancelled).
+   *
+   * @param workflow  Either a v2 DAG (`{version:2, nodes, entry}`) or a v1
+   *                   linear `{steps:[…]}`. v1 is auto-migrated.
+   * @param options.silent  When true (default), the SDK does NOT mount the
+   *                        bottom-left JourneyPill. The caller (typically a
+   *                        custom widget) is the sole HUD.
+   * @param options.onState  Convenience wrapper around EventBus.on('workflow:state').
+   */
+  async runWorkflow(
+    workflow: Workflow,
+    options: { silent?: boolean; onState?: (state: WorkflowState) => void } = {},
+  ): Promise<void> {
+    if (!this.initialized) await this.init();
+    if (!this.active) this.activate();
+    const wf = isV2Workflow(workflow) ? workflow : migrateV1ToV2(workflow);
+    validateWorkflowV2(wf);
+
+    const { WorkflowExecutor } = await import('./journey/workflow-executor');
+    const executor = new WorkflowExecutor({
+      cursorEngine: this.cursorEngine,
+      journeyRunner: this.journey,
+      eventBus: this.eventBus,
+    });
+    if (options.onState) {
+      this.eventBus.on('workflow:state', options.onState as any);
+    }
+    await executor.run(wf, { silent: options.silent });
   }
 
   cancelJourney(): void {

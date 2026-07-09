@@ -195,3 +195,49 @@ export interface WorkflowV2 {
   steps?: LegacyStep[];
   metadata?: Workflow['metadata'];
 }
+
+// ── Runtime types ──────────────────────────────────────────────────────────
+
+/** A single named value shared across nodes within one workflow run. */
+export interface ExecContext {
+  /** Named outputs produced by previous nodes. */
+  params: Record<string, JsonValue>;
+  /** The currently executing loop variable (set by `loop` nodes). */
+  item?: JsonValue;
+}
+
+/** Workflow-level lifecycle status. */
+export type WorkflowRunStatus =
+  | 'idle'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled';
+
+/** Per-node lifecycle status (a richer set than workflow-level). */
+export type NodeRunStatus =
+  | 'pending'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'skipped';
+
+/** Payload of every `workflow:state` event the executor emits. */
+export interface WorkflowState {
+  workflowId: string;
+  status: WorkflowRunStatus;
+  /** Currently running node id (or null). */
+  currentNode: string | null;
+  /** Total nodes reachable from entry (informational; computed at start). */
+  totalNodes: number;
+  /** Index of the currently running node (1-based) in execution order. */
+  stepIndex: number;
+  /** Snapshot of the current step (if any) for UI consumption. */
+  currentStep?: LegacyStep;
+  /** Set when status is `failed` or `cancelled`. */
+  error?: string;
+  /** Per-node status snapshot for the full graph; widget can render from it. */
+  nodeStatus?: Record<string, NodeRunStatus>;
+  /** Output params collected so far (live). */
+  params?: Record<string, JsonValue>;
+}
